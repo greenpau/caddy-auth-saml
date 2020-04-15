@@ -1,3 +1,9 @@
+vendor/**
+bin/**
+.coverage/**
+.doc/**
+*TODO*
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
