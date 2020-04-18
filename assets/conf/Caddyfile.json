@@ -33,13 +33,16 @@
                         "tenant_id": "1b9e886b-8ff2-4378-b6c8-6771259a5f51",
                         "application_id": "623cae7c-e6b2-43c5-853c-2059c9b2cb58",
                         "application_name": "My Gatekeeper",
-                        "entity_id": "https://localhost:3443/saml/azure",
+                        "entity_id": "urn:caddy:mygatekeeper",
                         "acs_urls": [
-                          "https://localhost:3443/saml/azure"
+                          "https://mygatekeeper/saml",
+                          "https://mygatekeeper.local/saml",
+                          "https://192.168.10.10:3443/saml",
+                          "https://localhost:3443/saml"
                         ]
                       },
                       "ui": {
-                        "template_location": "assets/ui/ui.template",
+                        "template_location": "/etc/caddy/auth/saml/ui/ui.template",
                         "allow_role_selection": false
                       }
                     }
@@ -72,7 +75,6 @@
               ],
               "terminal": true
             },
-
             {
               "handle": [
                 {

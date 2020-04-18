@@ -1,5 +1,9 @@
 # caddy-auth-saml
 
+![build](https://github.com/greenpau/caddy-auth-saml/workflows/build/badge.svg?branch=master)
+[<img src="https://img.shields.io/badge/godoc-reference-blue.svg">](https://pkg.go.dev/github.com/greenpau/caddy-auth-saml)
+[<img src="https://img.shields.io/badge/community-forum-ff69b4.svg">](https://caddy.community)
+
 SAML Authentication Plugin for Caddy v2.
 
 The plugin supports the following identity providers:
@@ -9,116 +13,171 @@ The plugin supports the following identity providers:
 
 ## Getting Started
 
+This plugin is an application in itself. It has a simple UI
+and a routine that checks the validity of the SAML assertions
+provided by an Identity Provider (IdP).
 
+### Time Synchronization
 
+Importantly, SAML assertion validation checks timestamps. It is
+critical that the application validating the assertions maintains
+accurate clock. The out of sync time WILL result in failed
+authentications.
+
+### Authentication Endpoint
+
+Each instance of the plugin requires an endpoint. Let's examine
+the endpoint `/saml` provided in a sample configuration file:
+
+```bash
+cat assets/conf/Caddyfile.json | jq '.apps.http.servers.srv0.routes'
+```
+
+The output is:
+
+```json
+{
+  "handle": [
+    {
+      "handler": "authentication",
+      "providers": {
+        "saml": {
+          "auth_url_path": "/saml",
+          "jwt": {
+            "token_name": "JWT_TOKEN",
+            "token_secret": "383aca9a-1c39-4d7a-b4d8-67ba4718dd3f",
+            "token_issuer": "7a50e023-2c6e-4a5e-913e-23ecd0e2b940"
+          },
+          "azure": {
+            "idp_metadata_location": "/etc/caddy/auth/saml/idp/azure_ad_app_metadata.xml",
+            "idp_sign_cert_location": "/etc/caddy/auth/saml/idp/azure_ad_app_signing_cert.pem",
+            "tenant_id": "1b9e886b-8ff2-4378-b6c8-6771259a5f51",
+            "application_id": "623cae7c-e6b2-43c5-853c-2059c9b2cb58",
+            "application_name": "My Gatekeeper",
+            "entity_id": "urn:caddy:mygatekeeper",
+            "acs_urls": [
+              "https://mygatekeeper/saml",
+              "https://mygatekeeper.local/saml",
+              "https://192.168.10.10:3443/saml",
+              "https://localhost:3443/saml"
+            ]
+          },
+          "ui": {
+            "template_location": "/etc/caddy/auth/saml/ui/ui.template",
+            "allow_role_selection": false
+          }
+        }
+      }
+    }
+  ],
+  "match": [
+    {
+      "path": [
+        "/saml*"
+      ]
+    }
+  ],
+  "terminal": true
+}
+```
+
+### User Interface (UI)
+
+The SAML endpoint `/saml` serves a UI. This is defined by the following
+snippet of the above configuration. The `/saml*` ensures that anything
+matching `/saml` would end at the above handler.
+
+```json
+  "match": [
+    {
+      "path": [
+        "/saml*"
+      ]
+    }
+  ],
+```
+
+The UI template is Golang template. The template in
+`assets/ui/ui.template` is the default UI served by the plugin.
+
+* `template_location`: The location of a custom UI template
+* `allow_role_selection`: Enables or disables the ability to
+  select a role after successful validation of a SAML assertion.
+
+```json
+          "ui": {
+            "template_location": "/etc/caddy/auth/saml/ui/ui.template",
+            "allow_role_selection": false
+          }
+```
+
+### JWT Token
+
+After a successful validation of a SAML assertion, the plugin issues
+a JWT token.
+
+* `token_name`: The name of the issues token (default: 'jwt_token`)
+* `token_secret`: The token signing secret (symmetric, i.e. HMAC algo)
+* `token_key`: (TODO: not supported) The token signing public/private
+  key pair (asymmetric, i.e. RSA or ECDSA algo).
+* `token_issuer`: The value of `iss` field inserted by the plugin.
+
+```json
+          "jwt": {
+            "token_name": "JWT_TOKEN",
+            "token_secret": "383aca9a-1c39-4d7a-b4d8-67ba4718dd3f",
+            "token_issuer": "7a50e023-2c6e-4a5e-913e-23ecd0e2b940"
+          },
+```
+
+The issued token will be passed to a requester via:
+
+* The cookie specified in `token_name` key
+* The `Authorization` header via `Bearer` directive
 
 ## Azure Active Directory (Office 365) Applications
 
-### Caddy Configuration
+### Plugin Configuration
+
+First, fetch the Azure IdP plugin configuration:
+
+```
+cat assets/conf/Caddyfile.json | jq '.apps.http.servers.srv0.routes[0].handle[0].providers.saml.azure'
+```
+
+
+```json
+{
+  "idp_metadata_location": "/etc/caddy/auth/saml/idp/azure_ad_app_metadata.xml",
+  "idp_sign_cert_location": "/etc/caddy/auth/saml/idp/azure_ad_app_signing_cert.pem",
+  "tenant_id": "1b9e886b-8ff2-4378-b6c8-6771259a5f51",
+  "application_id": "623cae7c-e6b2-43c5-853c-2059c9b2cb58",
+  "application_name": "My Gatekeeper",
+  "entity_id": "urn:caddy:mygatekeeper",
+  "acs_urls": [
+    "https://mygatekeeper/saml",
+    "https://mygatekeeper.local/saml",
+    "https://192.168.10.10:3443/saml",
+    "https://localhost:3443/saml"
+  ]
+}
+```
 
 The plugin supports the following parameters for Azure Active
 Directory (Office 365) applications:
 
 | **Parameter Name** | **Description** |
 | --- | --- |
-| `enabled` | Enable Azure AD Identity Provider |
 | `idp_metadata_location` | The url or path to Azure IdP Metadata |
 | `idp_sign_cert_location` | The path to Azure IdP Signing Certificate |
 | `tenant_id` | Azure Tenant ID |
 | `application_id` | Azure Application ID |
 | `application_name` | Azure Application Name |
 | `entity_id` | Azure Application Identifier (Entity ID) |
-| `acs_urls` | Azure Application Reply URLs (Assertion Consumer Service URL) |
+| `acs_urls` | One of more Assertion Consumer Service URLs |
 
-Please review `assets/conf/azure/Caddyfile.json` configuration file
-
-```bash
-cat assets/conf/azure/Caddyfile.json | jq '.apps.http.servers.srv0.routes'
-```
-
-The following Caddy configuration enabled SAML-based authentication
-at `/saml` endpoint. If a user browses to `/saml`, the user would see
-a "Sign In" page.
-
-```json
-[
-  {
-    "handle": [
-      {
-        "handler": "authentication",
-        "providers": {
-          "saml": {
-            "auth_url_path": "/saml",
-            "jwt": {
-              "token_name": "JWT_TOKEN",
-              "token_secret": "383aca9a-1c39-4d7a-b4d8-67ba4718dd3f",
-              "token_issuer": "7a50e023-2c6e-4a5e-913e-23ecd0e2b940"
-            },
-            "azure": {
-              "idp_metadata_location": "/etc/caddy/auth/saml/idp/azure_ad_app_metadata.xml",
-              "idp_sign_cert_location": "/etc/caddy/auth/saml/idp/azure_ad_app_signing_cert.pem",
-              "tenant_id": "1b9e886b-8ff2-4378-b6c8-6771259a5f51",
-              "application_id": "623cae7c-e6b2-43c5-853c-2059c9b2cb58",
-              "application_name": "My Gatekeeper",
-              "entity_id": "https://localhost:3443/saml/azure",
-              "acs_urls": [
-                "https://localhost:3443/saml/azure"
-              ]
-            },
-            "ui": {
-              "template_location": "assets/ui/ui.template",
-              "allow_role_selection": false
-            }
-          }
-        }
-      }
-    ],
-    "match": [
-      {
-        "path": [
-          "/saml*"
-        ]
-      }
-    ],
-    "terminal": true
-  },
-  {
-    "handle": [
-      {
-        "body": "OK",
-        "handler": "static_response",
-        "status_code": 200
-      }
-    ],
-    "match": [
-      {
-        "path": [
-          "/health"
-        ]
-      }
-    ],
-    "terminal": true
-  },
-  {
-    "handle": [
-      {
-        "body": "1.0.0",
-        "handler": "static_response",
-        "status_code": 200
-      }
-    ],
-    "match": [
-      {
-        "path": [
-          "/version"
-        ]
-      }
-    ],
-    "terminal": true
-  }
-]
-```
-
+The `acs_urls` must list all URLs the users of the application
+can reach it at.
 
 ### Set Up Azure AD Application
 
@@ -144,9 +203,11 @@ The "Branding" page configures "Home Page URL".
 
 For demostration purposes, we will create the following "Roles" in the application:
 
-* Viewer
-* Editor
-* Administrator
+| **Azure Role Name** | **Role Name in SAML Assertion** |
+| --- | --- |
+| Viewer | AzureAD_Viewer |
+| Editor | AzureAD_Editor |
+| Administrator | AzureAD_Administrator |
 
 Use "Manifest" tab to add roles in the manifest via `appRoles` key:
 
@@ -236,7 +297,6 @@ Further, download:
 
 ![Azure AD App - SAML Signing Certificate](./assets/docs/_static/images/azure_app_saml_other.png)
 
-
 ### Azure AD IdP Metadata and Certificate
 
 The following command downloads IdP metadata file for Azure AD Tenant with
@@ -244,17 +304,19 @@ ID `1b9e886b-8ff2-4378-b6c8-6771259a5f51`. Please note the `xmllint` utility
 is a part of `libxml2` library.
 
 ```bash
+
 curl -s -L -o /tmp/federationmetadata.xml https://login.microsoftonline.com/1b9e886b-8ff2-4378-b6c8-6771259a5f51/federationmetadata/2007-06/federationmetadata.xml
-sudo mkdir -p /etc/saml
-cat /tmp/federationmetadata.xml | xmllint --format - | sudo tee /etc/saml/azure_ad_idp_metadata.xml
+sudo mkdir -p /etc/caddy/auth/saml/idp/
+cat /tmp/federationmetadata.xml | xmllint --format - | sudo tee /etc/caddy/auth/saml/idp/azure_ad_app_metadata.xml
 ```
 
-The `/etc/saml/azure_ad_idp_metadata.xml` contains IdP metadata. This file contains
-the data necessary to verify the SAML claims received by this service and signed
-by Azure AD. The `idp_metadata` argument is being used to pass the location of
-IdP metadata.
+The `/etc/caddy/auth/saml/idp/azure_ad_app_metadata.xml` contains IdP metadata.
+This file contains the data necessary to verify the SAML claims received by this
+service and signed by Azure AD. The `idp_metadata` argument is being used to
+pass the location of IdP metadata.
 
-Next, download the "Certificate (Base64)" and store it in `/etc/saml/azure_ad_signing_cert.pem`.
+Next, download the "Certificate (Base64)" and store it in
+`/etc/caddy/auth/saml/idp/azure_ad_app_signing_cert.pem`.
 
 ### User Interface Options
 
