@@ -65,14 +65,6 @@ func (m *AuthProvider) Validate() error {
 		return fmt.Errorf("%s: authentication endpoint cannot be empty, try setting auth_url_path to /saml", m.Name)
 	}
 
-	// Validate UI settings
-	if m.UI == nil {
-		return fmt.Errorf("%s: UI settings not found", m.Name)
-	}
-	if err := m.UI.validate(); err != nil {
-		return fmt.Errorf("%s: UI settings validation error: %s", m.Name, err)
-	}
-
 	// Validate Azure AD settings
 	if m.Azure != nil {
 		m.Azure.logger = m.logger
@@ -89,8 +81,9 @@ func (m *AuthProvider) Validate() error {
 
 	// Validate UI settings
 	if m.UI == nil {
-		return fmt.Errorf("%s: UI settings not found", m.Name)
+		m.UI = &UserInterface{}
 	}
+
 	if err := m.UI.validate(); err != nil {
 		return fmt.Errorf("%s: UI settings validation error: %s", m.Name, err)
 	}

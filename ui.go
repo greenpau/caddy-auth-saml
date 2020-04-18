@@ -61,12 +61,18 @@ func (ui *UserInterface) validate() error {
 }
 
 func (ui *UserInterface) loadTemplates() error {
+	var templateBody string
 	t := template.New("AuthForm")
-	templateBody, err := readFile(ui.TemplateLocation)
-	if err != nil {
-		return err
+	if ui.TemplateLocation != "" {
+		templateBodyBytes, err := readFile(ui.TemplateLocation)
+		if err != nil {
+			return err
+		}
+		templateBody = string(templateBodyBytes)
+	} else {
+		templateBody = defaultUserInterface
 	}
-	t, err = t.Parse(string(templateBody))
+	t, err := t.Parse(templateBody)
 	if err != nil {
 		return err
 	}

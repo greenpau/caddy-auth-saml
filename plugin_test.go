@@ -5,7 +5,7 @@ package saml
 import (
 	"github.com/caddyserver/caddy/v2/caddytest"
 	"testing"
-	//"time"
+	"time"
 )
 
 func TestPlugin(t *testing.T) {
@@ -22,6 +22,7 @@ func TestPlugin(t *testing.T) {
 	caddytest.AssertGetResponse(t, "https://127.0.0.1:3443/version", 200, "1.0.0")
 	//caddytest.AssertGetResponse(t, "https://127.0.0.1:3443/saml", 200, "1.0.0")
 
-	//time.Sleep(1 * time.Millisecond)
-	//time.Sleep(6000 * time.Second)
+	time.Sleep(1 * time.Millisecond)
+	// Uncomment the below line to perform manual testing
+	// time.Sleep(6000 * time.Second)
 }
