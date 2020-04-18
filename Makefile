@@ -1,4 +1,5 @@
 .PHONY: test ctest covdir coverage docs linter qtest clean dep
+PLUGIN_NAME="caddy-auth-saml"
 PLUGIN_VERSION:=$(shell cat VERSION | head -1)
 GIT_COMMIT:=$(shell git describe --dirty --always)
 GIT_BRANCH:=$(shell git rev-parse --abbrev-ref HEAD -- | head -1)
@@ -13,9 +14,9 @@ all:
 	@echo "Version: $(PLUGIN_VERSION), Branch: $(GIT_BRANCH), Revision: $(GIT_COMMIT)"
 	@echo "Build on $(BUILD_DATE) by $(BUILD_USER)"
 	@rm -rf ./bin/caddy
-	@mkdir -p ../xcaddy/bin ./bin/
-	@cd ../xcaddy && xcaddy build master --output ./bin/caddy --with github.com/greenpau/caddy-auth-saml@0a6df1c6a69d2cc69bdc8856b19ece4ada69e483
-	@mv ../xcaddy/bin/caddy ./bin/
+	@mkdir -p ../xcaddy-$(PLUGIN_NAME) ./bin/
+	@cd ../xcaddy-$(PLUGIN_NAME)/ && xcaddy build master --output .caddy --with github.com/greenpau/caddy-auth-saml@v1.0.0
+	@mv ../xcaddy-$(PLUGIN_NAME)/caddy ./bin/
 	@#bin/caddy run -environ -config assets/conf/Caddyfile.json
 
 linter:

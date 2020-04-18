@@ -1,8 +1,8 @@
 # caddy-auth-saml
 
 ![build](https://github.com/greenpau/caddy-auth-saml/workflows/build/badge.svg?branch=master)
-[<img src="https://img.shields.io/badge/godoc-reference-blue.svg">](https://pkg.go.dev/github.com/greenpau/caddy-auth-saml)
-[<img src="https://img.shields.io/badge/community-forum-ff69b4.svg">](https://caddy.community)
+<a href="https://pkg.go.dev/github.com/greenpau/caddy-auth-saml" target="_blank"><img src="https://img.shields.io/badge/godoc-reference-blue.svg"></a>
+<a href="https://caddy.community" target="_blank"><img src="https://img.shields.io/badge/community-forum-ff69b4.svg"></a>
 
 SAML Authentication Plugin for Caddy v2.
 
