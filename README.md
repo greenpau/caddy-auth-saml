@@ -63,7 +63,7 @@ The output is:
             ]
           },
           "ui": {
-            "template_location": "/etc/caddy/auth/saml/ui/ui.template",
+            "template_location": "assets/ui/ui.template",
             "allow_role_selection": false
           }
         }
@@ -106,7 +106,7 @@ The UI template is Golang template. The template in
 
 ```json
           "ui": {
-            "template_location": "/etc/caddy/auth/saml/ui/ui.template",
+            "template_location": "assets/ui/ui.template",
             "allow_role_selection": false
           }
 ```
@@ -145,11 +145,12 @@ First, fetch the Azure IdP plugin configuration:
 cat assets/conf/Caddyfile.json | jq '.apps.http.servers.srv0.routes[0].handle[0].providers.saml.azure'
 ```
 
+The Azure configuration:
 
 ```json
 {
-  "idp_metadata_location": "/etc/caddy/auth/saml/idp/azure_ad_app_metadata.xml",
-  "idp_sign_cert_location": "/etc/caddy/auth/saml/idp/azure_ad_app_signing_cert.pem",
+  "idp_metadata_location": "assets/idp/azure_ad_app_metadata.xml",
+  "idp_sign_cert_location": "assets/idp/azure_ad_app_signing_cert.pem",
   "tenant_id": "1b9e886b-8ff2-4378-b6c8-6771259a5f51",
   "application_id": "623cae7c-e6b2-43c5-853c-2059c9b2cb58",
   "application_name": "My Gatekeeper",
