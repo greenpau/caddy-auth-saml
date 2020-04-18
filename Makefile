@@ -41,8 +41,8 @@ coverage:
 
 docs:
 	@mkdir -p .doc
-	@go doc -all . > .doc/index.txt
-	@cat .doc/index.txt
+	@go doc -all > .doc/index.txt
+	@python3 assets/scripts/toc.py > .doc/toc.md
 
 clean:
 	@rm -rf .doc
@@ -59,3 +59,5 @@ dep:
 	@go get -u golang.org/x/tools/cmd/godoc
 	@go get -u github.com/kyoh86/richgo
 	@go get -u github.com/caddyserver/xcaddy/cmd/xcaddy
+	@pip3 install Markdown --user
+	@pip3 install markdownify --user

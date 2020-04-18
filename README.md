@@ -6,6 +6,26 @@
 
 SAML Authentication Plugin for Caddy v2.
 
+<!-- begin-markdown-toc -->
+
+* [Getting Started](#getting-started)
+  * [Time Synchronization](#time-synchronization)
+  * [Authentication Endpoint](#authentication-endpoint)
+  * [User Interface (UI)](#user-interface-ui)
+  * [JWT Token](#jwt-token)
+
+* [Azure Active Directory (Office 365) Applications](#azure-active-directory-office-365-applications)
+  * [Plugin Configuration](#plugin-configuration)
+  * [Set Up Azure AD Application](#set-up-azure-ad-application)
+  * [Configure SAML Authentication](#configure-saml-authentication)
+  * [Azure AD IdP Metadata and Certificate](#azure-ad-idp-metadata-and-certificate)
+  * [User Interface Options](#user-interface-options)
+  * [Development Notes](#development-notes)
+
+* [AWS Cognito](#aws-cognito)
+
+<!-- end-markdown-toc -->
+
 The plugin supports the following identity providers:
 
 * [Azure Active Directory (Office 365) Applications](#azure-active-directory-office-365-applications)
@@ -334,7 +354,10 @@ server by Office 365.
 
 The URL is `https://localhost:3443/saml`.
 
-The below is the headers of the `POST` request that the user's browser makes:
+### Development Notes
+
+The below are the headers of the redirected `POST` request that the user's
+browser makes upon clicking "My Gatekeeper" application:
 
 ```
 Method: POST
