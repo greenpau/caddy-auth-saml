@@ -42,7 +42,7 @@
                         ]
                       },
                       "ui": {
-                        "template_location": "/etc/caddy/auth/saml/ui/ui.template",
+                        "template_location": "assets/ui/ui.template",
                         "allow_role_selection": false
                       }
                     }
