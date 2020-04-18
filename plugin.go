@@ -6,6 +6,7 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp/caddyauth"
 	"go.uber.org/zap"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -63,6 +64,32 @@ func (m *AuthProvider) Validate() error {
 
 	if m.AuthURLPath == "" {
 		return fmt.Errorf("%s: authentication endpoint cannot be empty, try setting auth_url_path to /saml", m.Name)
+	}
+
+	if m.Jwt.TokenName == "" {
+		m.Jwt.TokenName = "JWT_TOKEN"
+	}
+	m.logger.Info(
+		"found JWT token name",
+		zap.String("jwt.token_name", m.Jwt.TokenName),
+	)
+
+	if m.Jwt.TokenSecret == "" {
+		if os.Getenv("JWT_TOKEN_SECRET") == "" {
+			return fmt.Errorf("%s: jwt_token_secret must be defined either "+
+				"via JWT_TOKEN_SECRET environment variable or "+
+				"via jwt.token_secret configuration element",
+				m.Name,
+			)
+		}
+	}
+
+	if m.Jwt.TokenIssuer == "" {
+		m.logger.Warn(
+			"JWT token issuer not found, using default",
+			zap.String("jwt.token_issuer", "localhost"),
+		)
+		m.Jwt.TokenIssuer = "localhost"
 	}
 
 	// Validate Azure AD settings
