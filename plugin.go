@@ -1,6 +1,7 @@
 package saml
 
 import (
+	"encoding/base64"
 	"fmt"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp/caddyauth"
@@ -128,28 +129,74 @@ func (m *AuthProvider) Validate() error {
 	return nil
 }
 
+func validateRequestCompliance(r *http.Request) ([]byte, error) {
+	if r.ContentLength > 30000 {
+		return nil, fmt.Errorf("Request payload exceeded the limit of 30,000 bytes: %d", r.ContentLength)
+	}
+	if r.ContentLength < 500 {
+		return nil, fmt.Errorf("Request payload is too small: %d", r.ContentLength)
+	}
+	contentType := r.Header.Get("Content-Type")
+	if contentType != "application/x-www-form-urlencoded" {
+		return nil, fmt.Errorf("Request content type is not application/x-www-form-urlencoded")
+	}
+	if r.FormValue("SAMLResponse") == "" {
+		return nil, fmt.Errorf("Request payload has no SAMLResponse field")
+	}
+	b, err := base64.StdEncoding.DecodeString(r.FormValue("SAMLResponse"))
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
 // Authenticate validates the user credentials in and returns a user identity, if valid.
 func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (caddyauth.User, bool, error) {
 	var userIdentity *caddyauth.User
 	var userToken string
-	var err error
 	var userAuthenticated bool
 	m.logger.Error(fmt.Sprintf("authenticating ... %v", r))
 	uiArgs := m.UI.newUserInterfaceArgs()
 
 	// Authentication Requests
 	if r.Method == "POST" {
-		if strings.Contains(r.Header.Get("Origin"), "login.microsoftonline.com") ||
-			strings.Contains(r.Header.Get("Referer"), "windowsazure.com") {
-			userIdentity, userToken, err = m.Azure.Authenticate(r)
-			if err != nil {
-				uiArgs.Message = err.Error()
-			} else {
-				userAuthenticated = true
-				uiArgs.Authenticated = true
+		authFound := false
+		if requestPayload, err := validateRequestCompliance(r); err == nil {
+			// Azure AD handler
+			if strings.Contains(r.Header.Get("Origin"), "login.microsoftonline.com") ||
+				strings.Contains(r.Header.Get("Referer"), "windowsazure.com") {
+				authFound = true
+				userIdentity, userToken, err = m.Azure.Authenticate(requestPayload)
+				if err != nil {
+					uiArgs.Message = err.Error()
+					w.WriteHeader(http.StatusUnauthorized)
+					m.logger.Warn(
+						"Authentication failed",
+						zap.String("reason", err.Error()),
+						zap.String("remote_ip", r.RemoteAddr),
+					)
+				} else {
+					userAuthenticated = true
+					uiArgs.Authenticated = true
+					w.WriteHeader(http.StatusOK)
+					m.logger.Debug(
+						"Authentication succeeded",
+						zap.String("remote_ip", r.RemoteAddr),
+					)
+				}
 			}
+		} else {
+			uiArgs.Message = "Authentication failed"
+			m.logger.Warn(
+				"Authentication failed",
+				zap.String("reason", err.Error()),
+				zap.String("remote_ip", r.RemoteAddr),
+			)
 		}
 
+		if !authFound {
+			w.WriteHeader(http.StatusBadRequest)
+		}
 	}
 
 	// Render UI

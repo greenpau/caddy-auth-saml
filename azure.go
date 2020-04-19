@@ -2,7 +2,6 @@ package saml
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/xml"
 	"fmt"
 	//"github.com/caddyserver/caddy/v2"
@@ -50,21 +49,12 @@ type AzureIdp struct {
 }
 
 // Authenticate parses and validates SAML Response originating at Azure Active Directory.
-func (az *AzureIdp) Authenticate(r *http.Request) (*caddyauth.User, string, error) {
-	if r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
-		return nil, "", fmt.Errorf("The Azure AD authorization POST request is not application/x-www-form-urlencoded")
-	}
-	if r.FormValue("SAMLResponse") == "" {
-		return nil, "", fmt.Errorf("The Azure AD authorization POST request has no SAMLResponse")
-	}
-	samlpRespRaw, err := base64.StdEncoding.DecodeString(r.FormValue("SAMLResponse"))
-	if err != nil {
-		return nil, "", fmt.Errorf("The Azure AD authorization POST request with SAMLResponse failed base64 decoding: %s", err)
-	}
-
+func (az *AzureIdp) Authenticate(samlpResponse []byte) (*caddyauth.User, string, error) {
+	// TODO: remove log
+	az.logger.Error(fmt.Sprintf("%s", samlpResponse))
 	spErrors := []string{}
 	for _, sp := range az.ServiceProviders {
-		samlAssertions, err := sp.ParseXMLResponse(samlpRespRaw, []string{""})
+		samlAssertions, err := sp.ParseXMLResponse(samlpResponse, []string{""})
 		if err != nil {
 			spErrors = append(spErrors, err.Error())
 			continue
@@ -205,10 +195,7 @@ func (az *AzureIdp) Validate() error {
 		return err
 	}
 
-	az.LoginURL = fmt.Sprintf(
-		"https://account.activedirectory.windowsazure.com/applications/signin/%s/%s?tenantId=%s",
-		az.ApplicationName, az.ApplicationID, az.TenantID,
-	)
+	az.LoginURL = getAzureURL(az.ApplicationName, az.ApplicationID, az.TenantID)
 
 	az.logger.Info(
 		"validating Azure AD Login URL",
@@ -281,4 +268,11 @@ func (az *AzureIdp) Validate() error {
 		az.ServiceProviders = append(az.ServiceProviders, &sp)
 	}
 	return nil
+}
+
+func getAzureURL(applicationName, applicationID, tenantID string) string {
+	return fmt.Sprintf(
+		"https://account.activedirectory.windowsazure.com/applications/signin/%s/%s?tenantId=%s",
+		applicationName, applicationID, tenantID,
+	)
 }

@@ -80,9 +80,17 @@ func (ui *UserInterface) loadTemplates() error {
 	return nil
 }
 
-func (ui *UserInterface) render(w http.ResponseWriter, args userInterfaceArgs) error {
+func (ui *UserInterface) getBytes(args userInterfaceArgs) (*bytes.Buffer, error) {
 	b := bytes.NewBuffer(nil)
 	err := ui.Template.Execute(b, args)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func (ui *UserInterface) render(w http.ResponseWriter, args userInterfaceArgs) error {
+	b, err := ui.getBytes(args)
 	if err != nil {
 		w.WriteHeader(500)
 		w.Write([]byte(`Internal Server Error`))
