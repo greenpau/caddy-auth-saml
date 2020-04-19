@@ -51,7 +51,7 @@ type AzureIdp struct {
 // Authenticate parses and validates SAML Response originating at Azure Active Directory.
 func (az *AzureIdp) Authenticate(samlpResponse []byte) (*caddyauth.User, string, error) {
 	// TODO: remove log
-	az.logger.Error(fmt.Sprintf("%s", samlpResponse))
+	//az.logger.Error(fmt.Sprintf("%s", samlpResponse))
 	spErrors := []string{}
 	for _, sp := range az.ServiceProviders {
 		samlAssertions, err := sp.ParseXMLResponse(samlpResponse, []string{""})

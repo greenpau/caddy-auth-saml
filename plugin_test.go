@@ -13,6 +13,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -356,15 +357,12 @@ func TestPlugin(t *testing.T) {
 	authRequestPayload.WriteString("SAMLResponse=")
 	t.Logf("Payload bytes: %s", authRequestPayloadPlain.Bytes())
 	encodedauthRequestPayload := base64.StdEncoding.EncodeToString(authRequestPayloadPlain.Bytes())
+	encodedauthRequestPayload = url.QueryEscape(encodedauthRequestPayload)
 	t.Logf("Payload encoded: %s", encodedauthRequestPayload)
 
-	//encodedauthRequestPayload := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(authRequestPayloadPlain.Bytes())
-	//encodedauthRequestPayload = strings.Replace(encodedauthRequestPayload, "+", "", -1)
-	//authRequestPayload.WriteString(encodedauthRequestPayload)
+	authRequestPayload.WriteString(encodedauthRequestPayload)
 
-	//t.Logf("Request Payload: %s", authRequestPayload.String())
-
-	AssertPostResponse(t, baseURL+"/saml", authRequestHeaders, authRequestPayload, 401, expResponse)
+	//AssertPostResponse(t, baseURL+"/saml", authRequestHeaders, authRequestPayload, 401, expResponse)
 
 	// Test SAML validation with invalid payload - No SAMLResponse form field
 	t.Logf("Test SAML validation with invalid payload - No SAMLResponse form field")
