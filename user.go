@@ -2,6 +2,7 @@ package saml
 
 import (
 	"errors"
+	jwt "github.com/dgrijalva/jwt-go"
 	"time"
 )
 
@@ -65,4 +66,14 @@ func (u UserClaims) AsMap() map[string]interface{} {
 		m["origin"] = u.Origin
 	}
 	return m
+}
+
+func getToken(method string, secret []byte, claims UserClaims) (string, error) {
+	sm := jwt.GetSigningMethod(method)
+	token := jwt.NewWithClaims(sm, claims)
+	signedToken, err := token.SignedString(secret)
+	if err != nil {
+		return "", err
+	}
+	return signedToken, nil
 }

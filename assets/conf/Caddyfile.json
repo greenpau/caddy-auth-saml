@@ -38,6 +38,7 @@
                           "https://mygatekeeper/saml",
                           "https://mygatekeeper.local/saml",
                           "https://192.168.10.10:3443/saml",
+                          "https://127.0.0.1:3443/saml",
                           "https://localhost:3443/saml"
                         ]
                       },

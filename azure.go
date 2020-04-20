@@ -9,7 +9,6 @@ import (
 	samllib "github.com/crewjam/saml"
 	samlutils "github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
-	jwt "github.com/dgrijalva/jwt-go"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
@@ -22,14 +21,14 @@ import (
 // AzureIdp authenticates request from Azure AD.
 type AzureIdp struct {
 	CommonParameters
-	Enabled             bool                       `json:"enabled,omitempty"`
-	ServiceProviders    []*samllib.ServiceProvider `json:"-"`
-	IdpMetadataLocation string                     `json:"idp_metadata_location,omitempty"`
-	IdpMetadataURL      *url.URL                   `json:"-"`
-	IdpSignCertLocation string                     `json:"idp_sign_cert_location,omitempty"`
-	TenantID            string                     `json:"tenant_id,omitempty"`
-	ApplicationID       string                     `json:"application_id,omitempty"`
-	ApplicationName     string                     `json:"application_name,omitempty"`
+	Enabled             bool                                `json:"enabled,omitempty"`
+	ServiceProviders    map[string]*samllib.ServiceProvider `json:"-"`
+	IdpMetadataLocation string                              `json:"idp_metadata_location,omitempty"`
+	IdpMetadataURL      *url.URL                            `json:"-"`
+	IdpSignCertLocation string                              `json:"idp_sign_cert_location,omitempty"`
+	TenantID            string                              `json:"tenant_id,omitempty"`
+	ApplicationID       string                              `json:"application_id,omitempty"`
+	ApplicationName     string                              `json:"application_name,omitempty"`
 
 	// LoginURL is the link to Azure AD authentication portal.
 	// The link is auto-generated based on Azure AD tenant and
@@ -49,15 +48,16 @@ type AzureIdp struct {
 }
 
 // Authenticate parses and validates SAML Response originating at Azure Active Directory.
-func (az *AzureIdp) Authenticate(samlpResponse []byte) (*caddyauth.User, string, error) {
+func (az *AzureIdp) Authenticate(acsURL string, samlpResponse []byte) (*caddyauth.User, string, error) {
 	// TODO: remove log
 	//az.logger.Error(fmt.Sprintf("%s", samlpResponse))
-	spErrors := []string{}
-	for _, sp := range az.ServiceProviders {
+	//az.logger.Error(fmt.Sprintf("ACS: %s", acsURL))
+	if sp, exists := az.ServiceProviders[acsURL]; !exists {
+		return nil, "", fmt.Errorf("Unsupported ACS URL %s", acsURL)
+	} else {
 		samlAssertions, err := sp.ParseXMLResponse(samlpResponse, []string{""})
 		if err != nil {
-			spErrors = append(spErrors, err.Error())
-			continue
+			return nil, "", err
 		}
 
 		claims := UserClaims{}
@@ -110,8 +110,12 @@ func (az *AzureIdp) Authenticate(samlpResponse []byte) (*caddyauth.User, string,
 			}
 		}
 
-		if claims.Email == "" || claims.Name == "" || len(claims.Roles) == 0 {
+		if claims.Email == "" || claims.Name == "" {
 			return nil, "", fmt.Errorf("The Azure AD authorization failed, mandatory attributes not found: %v", claims)
+		}
+
+		if len(claims.Roles) == 0 {
+			claims.Roles = append(claims.Roles, "anonymous")
 		}
 
 		if az.Jwt.TokenIssuer != "" {
@@ -127,14 +131,13 @@ func (az *AzureIdp) Authenticate(samlpResponse []byte) (*caddyauth.User, string,
 			},
 		}
 
-		token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
-		validToken, err := token.SignedString([]byte(az.Jwt.TokenSecret))
+		token, err := getToken("HS512", []byte(az.Jwt.TokenSecret), claims)
 		if err != nil {
 			return nil, "", fmt.Errorf("Failed to issue JWT token with %v claims: %s", claims, err)
 		}
-		return user, validToken, nil
+
+		return user, token, nil
 	}
-	return nil, "", fmt.Errorf("The Azure AD validation failures: %s", strings.Join(spErrors, ", "))
 }
 
 // Validate performs configuration validation
@@ -233,8 +236,8 @@ func (az *AzureIdp) Validate() error {
 		azureOptions.IDPMetadata = idpMetadata
 	}
 
+	az.ServiceProviders = make(map[string]*samllib.ServiceProvider)
 	for _, acsURL := range az.AssertionConsumerServiceURLs {
-
 		sp := samlsp.DefaultServiceProvider(azureOptions)
 		sp.AllowIDPInitiated = true
 		//sp.EntityID = sp.IDPMetadata.EntityID
@@ -265,7 +268,7 @@ func (az *AzureIdp) Validate() error {
 			break
 		}
 
-		az.ServiceProviders = append(az.ServiceProviders, &sp)
+		az.ServiceProviders[acsURL] = &sp
 	}
 	return nil
 }

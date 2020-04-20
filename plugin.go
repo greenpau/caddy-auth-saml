@@ -129,25 +129,46 @@ func (m *AuthProvider) Validate() error {
 	return nil
 }
 
-func validateRequestCompliance(r *http.Request) ([]byte, error) {
+func validateRequestCompliance(r *http.Request) ([]byte, string, error) {
 	if r.ContentLength > 30000 {
-		return nil, fmt.Errorf("Request payload exceeded the limit of 30,000 bytes: %d", r.ContentLength)
+		return nil, "", fmt.Errorf("Request payload exceeded the limit of 30,000 bytes: %d", r.ContentLength)
 	}
 	if r.ContentLength < 500 {
-		return nil, fmt.Errorf("Request payload is too small: %d", r.ContentLength)
+		return nil, "", fmt.Errorf("Request payload is too small: %d", r.ContentLength)
 	}
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/x-www-form-urlencoded" {
-		return nil, fmt.Errorf("Request content type is not application/x-www-form-urlencoded")
+		return nil, "", fmt.Errorf("Request content type is not application/x-www-form-urlencoded")
 	}
 	if r.FormValue("SAMLResponse") == "" {
-		return nil, fmt.Errorf("Request payload has no SAMLResponse field")
+		return nil, "", fmt.Errorf("Request payload has no SAMLResponse field")
 	}
 	b, err := base64.StdEncoding.DecodeString(r.FormValue("SAMLResponse"))
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return b, nil
+
+	// Extract the Destination attribute of samlp:Response. It SHOULD be
+	// one of the ACS endpoints registered with the plugin.
+	acsURL := ""
+	s := string(b)
+	for _, elem := range []string{"Destination=\""} {
+		i := strings.Index(s, elem)
+		if i < 0 {
+			continue
+		}
+		j := strings.Index(s[i+len(elem):], "\"")
+		if j < 0 {
+			continue
+		}
+		acsURL = s[i+len(elem) : i+len(elem)+j]
+	}
+
+	if acsURL == "" {
+		return nil, "", fmt.Errorf("Failed to parse ACS URL")
+	}
+
+	return b, acsURL, nil
 }
 
 // Authenticate validates the user credentials in and returns a user identity, if valid.
@@ -161,14 +182,14 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 	// Authentication Requests
 	if r.Method == "POST" {
 		authFound := false
-		if requestPayload, err := validateRequestCompliance(r); err == nil {
+		if requestPayload, acsURL, err := validateRequestCompliance(r); err == nil {
 			// Azure AD handler
 			if strings.Contains(r.Header.Get("Origin"), "login.microsoftonline.com") ||
 				strings.Contains(r.Header.Get("Referer"), "windowsazure.com") {
 				authFound = true
-				userIdentity, userToken, err = m.Azure.Authenticate(requestPayload)
+				userIdentity, userToken, err = m.Azure.Authenticate(acsURL, requestPayload)
 				if err != nil {
-					uiArgs.Message = err.Error()
+					uiArgs.Message = "Authentication failed"
 					w.WriteHeader(http.StatusUnauthorized)
 					m.logger.Warn(
 						"Authentication failed",
