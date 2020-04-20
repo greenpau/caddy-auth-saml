@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp/caddyauth"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
@@ -173,11 +174,25 @@ func validateRequestCompliance(r *http.Request) ([]byte, string, error) {
 
 // Authenticate validates the user credentials in and returns a user identity, if valid.
 func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (caddyauth.User, bool, error) {
+	var reqID string
 	var userIdentity *caddyauth.User
 	var userToken string
 	var userAuthenticated bool
-	m.logger.Error(fmt.Sprintf("authenticating ... %v", r))
+
 	uiArgs := m.UI.newUserInterfaceArgs()
+
+	// Generate request UUID
+	reqID = uuid.New().String()
+
+	m.logger.Debug(
+		"Request received",
+		zap.String("request_id", reqID),
+		zap.String("method", r.Method),
+		zap.String("http_proto", r.Proto),
+		zap.String("remote_ip", r.RemoteAddr),
+		zap.Int64("content_length", r.ContentLength),
+		zap.String("host", r.Host),
+	)
 
 	// Authentication Requests
 	if r.Method == "POST" {
@@ -187,14 +202,14 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 			if strings.Contains(r.Header.Get("Origin"), "login.microsoftonline.com") ||
 				strings.Contains(r.Header.Get("Referer"), "windowsazure.com") {
 				authFound = true
-				userIdentity, userToken, err = m.Azure.Authenticate(acsURL, requestPayload)
+				userIdentity, userToken, err = m.Azure.Authenticate(reqID, acsURL, requestPayload)
 				if err != nil {
 					uiArgs.Message = "Authentication failed"
 					w.WriteHeader(http.StatusUnauthorized)
 					m.logger.Warn(
 						"Authentication failed",
-						zap.String("reason", err.Error()),
-						zap.String("remote_ip", r.RemoteAddr),
+						zap.String("request_id", reqID),
+						zap.String("error", err.Error()),
 					)
 				} else {
 					userAuthenticated = true
@@ -202,7 +217,8 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 					w.WriteHeader(http.StatusOK)
 					m.logger.Debug(
 						"Authentication succeeded",
-						zap.String("remote_ip", r.RemoteAddr),
+						zap.String("request_id", reqID),
+						zap.String("user_id", userIdentity.ID),
 					)
 				}
 			}
@@ -210,12 +226,20 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 			uiArgs.Message = "Authentication failed"
 			m.logger.Warn(
 				"Authentication failed",
-				zap.String("reason", err.Error()),
-				zap.String("remote_ip", r.RemoteAddr),
+				zap.String("request_id", reqID),
+				zap.String("error", err.Error()),
 			)
 		}
 
 		if !authFound {
+			if uiArgs.Message == "" {
+				uiArgs.Message = "Authentication failed"
+				m.logger.Warn(
+					"Authentication failed",
+					zap.String("request_id", reqID),
+					zap.String("error", "unsupported identity provider"),
+				)
+			}
 			w.WriteHeader(http.StatusBadRequest)
 		}
 	}
@@ -223,21 +247,17 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 	// Render UI
 	uiErr := m.UI.render(w, uiArgs)
 	if uiErr != nil {
-		m.logger.Error(uiErr.Error())
+		m.logger.Error(
+			"Failed UI",
+			zap.String("request_id", reqID),
+			zap.String("error", uiErr.Error()),
+		)
 	}
 
 	// Wrap up
 	if !userAuthenticated {
 		return m.failAzureAuthentication(w, nil)
 	}
-
-	/*
-		m.logger.Info(
-			"Authenticated user",
-			zap.String("token", userToken),
-		)
-		m.logger.Info(fmt.Sprintf("%v", userIdentity))
-	*/
 
 	w.Header().Set("Authorization", "Bearer "+userToken)
 	return *userIdentity, true, nil

@@ -21,7 +21,6 @@ import (
 // AzureIdp authenticates request from Azure AD.
 type AzureIdp struct {
 	CommonParameters
-	Enabled             bool                                `json:"enabled,omitempty"`
 	ServiceProviders    map[string]*samllib.ServiceProvider `json:"-"`
 	IdpMetadataLocation string                              `json:"idp_metadata_location,omitempty"`
 	IdpMetadataURL      *url.URL                            `json:"-"`
@@ -48,96 +47,98 @@ type AzureIdp struct {
 }
 
 // Authenticate parses and validates SAML Response originating at Azure Active Directory.
-func (az *AzureIdp) Authenticate(acsURL string, samlpResponse []byte) (*caddyauth.User, string, error) {
+func (az *AzureIdp) Authenticate(reqID, acsURL string, samlpResponse []byte) (*caddyauth.User, string, error) {
 	// TODO: remove log
 	//az.logger.Error(fmt.Sprintf("%s", samlpResponse))
 	//az.logger.Error(fmt.Sprintf("ACS: %s", acsURL))
-	if sp, exists := az.ServiceProviders[acsURL]; !exists {
+	sp, exists := az.ServiceProviders[acsURL]
+	if !exists {
 		return nil, "", fmt.Errorf("Unsupported ACS URL %s", acsURL)
-	} else {
-		samlAssertions, err := sp.ParseXMLResponse(samlpResponse, []string{""})
-		if err != nil {
-			return nil, "", err
-		}
+	}
 
-		claims := UserClaims{}
-		claims.ExpiresAt = time.Now().Add(time.Duration(900) * time.Second).Unix()
+	samlAssertions, err := sp.ParseXMLResponse(samlpResponse, []string{""})
+	if err != nil {
+		return nil, "", err
+	}
 
-		for _, attrStatement := range samlAssertions.AttributeStatements {
-			for _, attrEntry := range attrStatement.Attributes {
-				if len(attrEntry.Values) == 0 {
+	claims := UserClaims{}
+	claims.ExpiresAt = time.Now().Add(time.Duration(900) * time.Second).Unix()
+
+	for _, attrStatement := range samlAssertions.AttributeStatements {
+		for _, attrEntry := range attrStatement.Attributes {
+			if len(attrEntry.Values) == 0 {
+				continue
+			}
+			if strings.HasSuffix(attrEntry.Name, "Attributes/MaxSessionDuration") {
+				multiplier, err := strconv.Atoi(attrEntry.Values[0].Value)
+				if err != nil {
+					az.logger.Error(
+						"Failed parsing Attributes/MaxSessionDuration",
+						zap.String("request_id", reqID),
+						zap.String("error", err.Error()),
+					)
 					continue
 				}
-				if strings.HasSuffix(attrEntry.Name, "Attributes/MaxSessionDuration") {
-					multiplier, err := strconv.Atoi(attrEntry.Values[0].Value)
-					if err != nil {
-						az.logger.Error(
-							"Failed parsing Attributes/MaxSessionDuration",
-							zap.String("error", err.Error()),
-						)
-						continue
-					}
-					claims.ExpiresAt = time.Now().Add(time.Duration(multiplier) * time.Second).Unix()
-					continue
-				}
+				claims.ExpiresAt = time.Now().Add(time.Duration(multiplier) * time.Second).Unix()
+				continue
+			}
 
-				if strings.HasSuffix(attrEntry.Name, "identity/claims/displayname") {
-					claims.Name = attrEntry.Values[0].Value
-					continue
-				}
+			if strings.HasSuffix(attrEntry.Name, "identity/claims/displayname") {
+				claims.Name = attrEntry.Values[0].Value
+				continue
+			}
 
-				if strings.HasSuffix(attrEntry.Name, "identity/claims/emailaddress") {
-					claims.Email = attrEntry.Values[0].Value
-					continue
-				}
+			if strings.HasSuffix(attrEntry.Name, "identity/claims/emailaddress") {
+				claims.Email = attrEntry.Values[0].Value
+				continue
+			}
 
-				if strings.HasSuffix(attrEntry.Name, "identity/claims/identityprovider") {
-					claims.Origin = attrEntry.Values[0].Value
-					continue
-				}
+			if strings.HasSuffix(attrEntry.Name, "identity/claims/identityprovider") {
+				claims.Origin = attrEntry.Values[0].Value
+				continue
+			}
 
-				if strings.HasSuffix(attrEntry.Name, "identity/claims/name") {
-					claims.Subject = attrEntry.Values[0].Value
-					continue
-				}
+			if strings.HasSuffix(attrEntry.Name, "identity/claims/name") {
+				claims.Subject = attrEntry.Values[0].Value
+				continue
+			}
 
-				if strings.HasSuffix(attrEntry.Name, "Attributes/Role") {
-					for _, attrEntryElement := range attrEntry.Values {
-						claims.Roles = append(claims.Roles, attrEntryElement.Value)
-					}
-					continue
+			if strings.HasSuffix(attrEntry.Name, "Attributes/Role") {
+				for _, attrEntryElement := range attrEntry.Values {
+					claims.Roles = append(claims.Roles, attrEntryElement.Value)
 				}
+				continue
 			}
 		}
-
-		if claims.Email == "" || claims.Name == "" {
-			return nil, "", fmt.Errorf("The Azure AD authorization failed, mandatory attributes not found: %v", claims)
-		}
-
-		if len(claims.Roles) == 0 {
-			claims.Roles = append(claims.Roles, "anonymous")
-		}
-
-		if az.Jwt.TokenIssuer != "" {
-			claims.Issuer = az.Jwt.TokenIssuer
-		}
-
-		user := &caddyauth.User{
-			ID: claims.Email,
-			Metadata: map[string]string{
-				"name":  claims.Name,
-				"email": claims.Email,
-				"roles": strings.Join(claims.Roles, " "),
-			},
-		}
-
-		token, err := getToken("HS512", []byte(az.Jwt.TokenSecret), claims)
-		if err != nil {
-			return nil, "", fmt.Errorf("Failed to issue JWT token with %v claims: %s", claims, err)
-		}
-
-		return user, token, nil
 	}
+
+	if claims.Email == "" || claims.Name == "" {
+		return nil, "", fmt.Errorf("The Azure AD authorization failed, mandatory attributes not found: %v", claims)
+	}
+
+	if len(claims.Roles) == 0 {
+		claims.Roles = append(claims.Roles, "anonymous")
+	}
+
+	if az.Jwt.TokenIssuer != "" {
+		claims.Issuer = az.Jwt.TokenIssuer
+	}
+
+	user := &caddyauth.User{
+		ID: claims.Email,
+		Metadata: map[string]string{
+			"name":  claims.Name,
+			"email": claims.Email,
+			"roles": strings.Join(claims.Roles, " "),
+		},
+	}
+
+	token, err := getToken("HS512", []byte(az.Jwt.TokenSecret), claims)
+	if err != nil {
+		return nil, "", fmt.Errorf("Failed to issue JWT token with %v claims: %s", claims, err)
+	}
+
+	return user, token, nil
 }
 
 // Validate performs configuration validation

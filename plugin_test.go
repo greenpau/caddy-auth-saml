@@ -322,6 +322,9 @@ func TestPlugin(t *testing.T) {
 	authRequestParams.AssertionAttributeEmailAddress = "greenpau@contoso.com"
 	authRequestParams.AssertionAttributeName = "greenpau@contoso.com"
 	authRequestParams.AssertionAttributeRoleSessionName = "greenpau@contoso.com"
+	authRequestParams.SignatureDigestValue = "TBD"
+	authRequestParams.SignatureValue = "TBD"
+	authRequestParams.SignatureCertificate = "TBD"
 
 	caddytest.InitServer(t, rawConfig, "json")
 
@@ -358,7 +361,7 @@ func TestPlugin(t *testing.T) {
 	t.Logf("Payload bytes: %s", authRequestPayloadPlain.Bytes())
 	encodedauthRequestPayload := base64.StdEncoding.EncodeToString(authRequestPayloadPlain.Bytes())
 	encodedauthRequestPayload = url.QueryEscape(encodedauthRequestPayload)
-	t.Logf("Payload encoded: %s", encodedauthRequestPayload)
+	//t.Logf("Payload encoded: %s", encodedauthRequestPayload)
 
 	authRequestPayload.WriteString(encodedauthRequestPayload)
 
