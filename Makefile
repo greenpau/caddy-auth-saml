@@ -1,4 +1,4 @@
-.PHONY: test ctest covdir coverage docs linter qtest clean dep ui
+.PHONY: test ctest covdir coverage docs linter qtest clean dep misc
 PLUGIN_NAME="caddy-auth-saml"
 PLUGIN_VERSION:=$(shell cat VERSION | head -1)
 GIT_COMMIT:=$(shell git describe --dirty --always)
@@ -24,10 +24,10 @@ linter:
 	@golint *.go
 	@echo "PASS: golint"
 
-test: covdir linter ui
+test: covdir linter misc
 	@go test $(VERBOSE) -coverprofile=.coverage/coverage.out ./*.go
 
-ctest: covdir linter ui
+ctest: covdir linter misc
 	@time richgo test $(VERBOSE) $(TEST) -coverprofile=.coverage/coverage.out ./*.go
 
 covdir:
@@ -39,8 +39,9 @@ coverage:
 	@go test -covermode=count -coverprofile=.coverage/coverage.out ./*.go
 	@go tool cover -func=.coverage/coverage.out | grep -v "100.0"
 
-ui:
+misc:
 	@./assets/scripts/generate_ui.sh
+	@python3 assets/scripts/test_app_signing_cert.py > assets/scripts/test_app_signing_cert.xml
 
 docs:
 	@mkdir -p .doc
