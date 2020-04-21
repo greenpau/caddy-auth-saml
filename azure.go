@@ -7,7 +7,6 @@ import (
 	//"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp/caddyauth"
 	samllib "github.com/crewjam/saml"
-	samlutils "github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -255,9 +254,9 @@ func (az *AzureIdp) Validate() error {
 
 		for i := range sp.IDPMetadata.IDPSSODescriptors {
 			idpSSODescriptor := &sp.IDPMetadata.IDPSSODescriptors[i]
-			keyDescriptor := &samlutils.KeyDescriptor{
+			keyDescriptor := &samllib.KeyDescriptor{
 				Use: "signing",
-				KeyInfo: samlutils.KeyInfo{
+				KeyInfo: samllib.KeyInfo{
 					XMLName: xml.Name{
 						Space: "http://www.w3.org/2000/09/xmldsig#",
 						Local: "KeyInfo",

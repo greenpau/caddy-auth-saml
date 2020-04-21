@@ -5,10 +5,14 @@ package saml
 import (
 	"bytes"
 	"context"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"github.com/caddyserver/caddy/v2/caddytest"
+	"github.com/ma314smith/signedxml"
 	"io/ioutil"
 	"log"
 	"net"
@@ -20,6 +24,22 @@ import (
 	"text/template"
 	"time"
 )
+
+func getSigningKey(fp string) (*rsa.PrivateKey, error) {
+	fileContent, err := ioutil.ReadFile(fp)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(fileContent)
+	if block == nil || block.Type != "RSA PRIVATE KEY" {
+		return nil, fmt.Errorf("failed to decode PEM block containing RSA PRIVATE KEY")
+	}
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
+}
 
 func renderFlatString(b *bytes.Buffer) string {
 	s := b.String()
@@ -146,9 +166,6 @@ type authRequestParameters struct {
 	AssertionAttributeEmailAddress    string // greenpau@contoso.com
 	AssertionAttributeName            string // greenpau@contoso.com
 	AssertionAttributeRoleSessionName string // greenpau@contoso.com
-	SignatureDigestValue              string
-	SignatureValue                    string
-	SignatureCertificate              string
 	AuthnStatementTime                string // 2020-02-16T20:37:20.667Z
 }
 
@@ -185,26 +202,6 @@ var authRequestTemplateBody = `<samlp:Response ID="_9eefb041-27fe-4014-bf4b-932c
   </samlp:Status>
   <Assertion ID="_7298c1f7-4411-4bc6-b8e4-77622e935418" IssueInstant="{{ .AssertionIssueTime }}" Version="2.0" xmlns="urn:oasis:names:tc:SAML:2.0:assertion">
     <Issuer>https://sts.windows.net/{{ .TenantID }}/</Issuer>
-    <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
-      <SignedInfo>
-        <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
-        <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
-        <Reference URI="#_7298c1f7-4411-4bc6-b8e4-77622e935418">
-          <Transforms>
-            <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
-            <Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
-          </Transforms>
-          <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
-          <DigestValue>{{ .SignatureDigestValue }}</DigestValue>
-        </Reference>
-      </SignedInfo>
-      <SignatureValue>{{ .SignatureValue }}</SignatureValue>
-      <KeyInfo>
-        <X509Data>
-          <X509Certificate>{{ .SignatureCertificate }}</X509Certificate>
-        </X509Data>
-      </KeyInfo>
-    </Signature>
     <Subject>
       <NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">{{ .AssertionSubject }}</NameID>
       <SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
@@ -322,9 +319,6 @@ func TestPlugin(t *testing.T) {
 	authRequestParams.AssertionAttributeEmailAddress = "greenpau@contoso.com"
 	authRequestParams.AssertionAttributeName = "greenpau@contoso.com"
 	authRequestParams.AssertionAttributeRoleSessionName = "greenpau@contoso.com"
-	authRequestParams.SignatureDigestValue = "TBD"
-	authRequestParams.SignatureValue = "TBD"
-	authRequestParams.SignatureCertificate = "TBD"
 
 	caddytest.InitServer(t, rawConfig, "json")
 
@@ -359,6 +353,22 @@ func TestPlugin(t *testing.T) {
 	authRequestPayload = bytes.NewBuffer(nil)
 	authRequestPayload.WriteString("SAMLResponse=")
 	t.Logf("Payload bytes: %s", authRequestPayloadPlain.Bytes())
+
+	// XML Signing
+	signingKey, err := getSigningKey("assets/idp/azure_ad_app_signing_pkcs1_key.pem")
+	if err != nil {
+		t.Fatalf("error parsing signing key: %s", err)
+	}
+	signer, err := signedxml.NewSigner(authRequestPayloadPlain.String())
+	if err != nil {
+		t.Fatalf("error initializing XML signer: %s", err)
+	}
+	signedAuthRequestPayloadPlain, err := signer.Sign(signingKey)
+	if err != nil {
+		t.Fatalf("error signing XML doc: %s", err)
+	}
+	t.Logf("Signed payload: %s", signedAuthRequestPayloadPlain)
+
 	encodedauthRequestPayload := base64.StdEncoding.EncodeToString(authRequestPayloadPlain.Bytes())
 	encodedauthRequestPayload = url.QueryEscape(encodedauthRequestPayload)
 	//t.Logf("Payload encoded: %s", encodedauthRequestPayload)

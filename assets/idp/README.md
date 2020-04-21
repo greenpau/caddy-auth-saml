@@ -42,6 +42,14 @@ openssl req -x509 -sha256 -nodes \
   -extensions v3_ext
 ```
 
+The `azure_ad_app_signing_key.pem` is in PKCS#8 format.
+The testing requires PKCS#1 format.
+
+```bash
+openssl rsa -in assets/idp/azure_ad_app_signing_key.pem \
+  -out assets/idp/azure_ad_app_signing_pkcs1_key.pem
+```
+
 By replacing `-extensions v3_ext` with `-extensions v3_req` in the above
 command, the following X509v3 extensions extensions would be added:
 
