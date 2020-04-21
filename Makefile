@@ -14,7 +14,11 @@ all:
 	@echo "Version: $(PLUGIN_VERSION), Branch: $(GIT_BRANCH), Revision: $(GIT_COMMIT)"
 	@echo "Build on $(BUILD_DATE) by $(BUILD_USER)"
 	@rm -rf ./bin/caddy
-	@xcaddy build v2.0.0-rc.1 --output ./bin/caddy --with github.com/greenpau/caddy-auth-jwt@v0.0.3
+	@rm -rf ../xcaddy-$(PLUGIN_NAME)/*
+	@mkdir -p ../xcaddy-$(PLUGIN_NAME) && cd ../xcaddy-$(PLUGIN_NAME) && \
+		xcaddy build v2.0.0-rc.3 --output ../$(PLUGIN_NAME)/bin/caddy \
+		--with github.com/greenpau/caddy-auth-saml@latest \
+		--with github.com/greenpau/caddy-auth-jwt@latest
 	@#bin/caddy run -environ -config assets/conf/Caddyfile.json
 
 linter:
