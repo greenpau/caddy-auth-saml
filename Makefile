@@ -65,3 +65,4 @@ dep:
 	@go get -u github.com/caddyserver/xcaddy/cmd/xcaddy
 	@pip3 install Markdown --user
 	@pip3 install markdownify --user
+	@pip3 install signxml --user
