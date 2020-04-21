@@ -1,4 +1,4 @@
-.PHONY: test ctest covdir coverage docs linter qtest clean dep misc
+.PHONY: test ctest covdir coverage docs linter qtest clean dep misc release
 PLUGIN_NAME="caddy-auth-saml"
 PLUGIN_VERSION:=$(shell cat VERSION | head -1)
 GIT_COMMIT:=$(shell git describe --dirty --always)
@@ -66,3 +66,19 @@ dep:
 	@pip3 install Markdown --user
 	@pip3 install markdownify --user
 	@pip3 install signxml --user
+	@go get -u github.com/greenpau/versioned/cmd/versioned
+
+
+release:
+	@echo "Making release"
+	@if [ $(GIT_BRANCH) != "master" ]; then echo "cannot release to non-master branch $(GIT_BRANCH)" && false; fi
+	@git diff-index --quiet HEAD -- || ( echo "git directory is dirty, commit changes first" && false )
+	@versioned -patch
+	@echo "Patched version"
+	@git add VERSION
+	@git commit -m "released v`cat VERSION | head -1`"
+	@git tag -a v`cat VERSION | head -1` -m "v`cat VERSION | head -1`"
+	@git push
+	@git push --tags
+	@#git push --delete origin vX.Y.Z
+	@#git tag --delete vX.Y.Z
