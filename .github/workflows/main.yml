@@ -46,6 +46,8 @@ jobs:
         sudo apt-get --assume-yes install make
         pip3 install --upgrade pip setuptools wheel
         pip3 install signxml --user
+        sudo cp assets/idp/azure_ad_app_signing_cert.pem /usr/local/share/ca-certificates/azure_ad_app_signing_cert.crt
+        sudo update-ca-certificates
     - name: Install Go modules
       run: |
         go install golang.org/x/lint/golint
