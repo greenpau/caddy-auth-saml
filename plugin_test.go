@@ -12,7 +12,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/caddyserver/caddy/v2/caddytest"
-	"github.com/ma314smith/signedxml"
+	//"github.com/ma314smith/signedxml"
 	"io/ioutil"
 	"log"
 	"net"
@@ -202,6 +202,21 @@ var authRequestTemplateBody = `<samlp:Response ID="_9eefb041-27fe-4014-bf4b-932c
   </samlp:Status>
   <Assertion ID="_7298c1f7-4411-4bc6-b8e4-77622e935418" IssueInstant="{{ .AssertionIssueTime }}" Version="2.0" xmlns="urn:oasis:names:tc:SAML:2.0:assertion">
     <Issuer>https://sts.windows.net/{{ .TenantID }}/</Issuer>
+    <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+      <SignedInfo>
+        <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+        <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+        <Reference URI="#_0369ee56-8152-4f92-b8c3-e1481fe74300">
+          <Transforms>
+            <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+            <Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+          </Transforms>
+          <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+          <DigestValue>asdf</DigestValue>
+        </Reference>
+      </SignedInfo>
+      <SignatureValue>asdf</SignatureValue>
+    </Signature>
     <Subject>
       <NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">{{ .AssertionSubject }}</NameID>
       <SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
@@ -355,19 +370,22 @@ func TestPlugin(t *testing.T) {
 	t.Logf("Payload bytes: %s", authRequestPayloadPlain.Bytes())
 
 	// XML Signing
-	signingKey, err := getSigningKey("assets/idp/azure_ad_app_signing_pkcs1_key.pem")
-	if err != nil {
-		t.Fatalf("error parsing signing key: %s", err)
-	}
-	signer, err := signedxml.NewSigner(authRequestPayloadPlain.String())
-	if err != nil {
-		t.Fatalf("error initializing XML signer: %s", err)
-	}
-	signedAuthRequestPayloadPlain, err := signer.Sign(signingKey)
-	if err != nil {
-		t.Fatalf("error signing XML doc: %s", err)
-	}
-	t.Logf("Signed payload: %s", signedAuthRequestPayloadPlain)
+	/*
+		signingKey, err := getSigningKey("assets/idp/azure_ad_app_signing_pkcs1_key.pem")
+		if err != nil {
+			t.Fatalf("error parsing signing key: %s", err)
+		}
+		signer, err := signedxml.NewSigner(authRequestPayloadPlain.String())
+		if err != nil {
+			t.Fatalf("error initializing XML signer: %s", err)
+		}
+
+		signedAuthRequestPayloadPlain, err := signer.Sign(signingKey)
+		if err != nil {
+			t.Fatalf("error signing XML doc: %s", err)
+		}
+		t.Logf("Signed payload: %s", signedAuthRequestPayloadPlain)
+	*/
 
 	encodedauthRequestPayload := base64.StdEncoding.EncodeToString(authRequestPayloadPlain.Bytes())
 	encodedauthRequestPayload = url.QueryEscape(encodedauthRequestPayload)
