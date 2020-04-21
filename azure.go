@@ -8,6 +8,7 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp/caddyauth"
 	samllib "github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
+	jwt "github.com/greenpau/caddy-auth-jwt"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
@@ -60,7 +61,7 @@ func (az *AzureIdp) Authenticate(reqID, acsURL string, samlpResponse []byte) (*c
 		return nil, "", err
 	}
 
-	claims := UserClaims{}
+	claims := jwt.UserClaims{}
 	claims.ExpiresAt = time.Now().Add(time.Duration(900) * time.Second).Unix()
 
 	for _, attrStatement := range samlAssertions.AttributeStatements {
@@ -132,7 +133,7 @@ func (az *AzureIdp) Authenticate(reqID, acsURL string, samlpResponse []byte) (*c
 		},
 	}
 
-	token, err := getToken("HS512", []byte(az.Jwt.TokenSecret), claims)
+	token, err := jwt.GetToken("HS512", []byte(az.Jwt.TokenSecret), claims)
 	if err != nil {
 		return nil, "", fmt.Errorf("Failed to issue JWT token with %v claims: %s", claims, err)
 	}
