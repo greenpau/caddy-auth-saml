@@ -29,7 +29,7 @@
     </style>
 
   </head>
-  <body>
+  <body class="bg-light">
     <div class="container">
       {{ if not .Authenticated }}
       <div class="row justify-content-center py-5">
@@ -70,7 +70,20 @@
         </div>
       </div>
       {{ else }}
-      Authenticated User
+      <div class="py-5 text-center col-md-4 offset-md-4">
+        <h2>Welcome</h2>
+        <p class="lead">Access the following services.</p>
+        <ul class="list-group mb-3 pb-2">
+          {{range .PortalLinks}}
+          <li class="list-group-item d-flex justify-content-between lh-condensed">
+            <div>
+              <h5 class="my-0"><a href="{{ .Link }}">{{ .Title }}</a></h6>
+            </div>
+          </li>
+          {{ end }}
+        </ul>
+	<a href="{{ .AuthEndpoint }}?logout=true" class="btn btn-primary btn-lg active" role="button" aria-pressed="true">Logout</a>
+      </div>
       {{ end }}
     </div>
 

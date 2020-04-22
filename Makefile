@@ -3,6 +3,7 @@ PLUGIN_NAME="caddy-auth-saml"
 PLUGIN_VERSION:=$(shell cat VERSION | head -1)
 GIT_COMMIT:=$(shell git describe --dirty --always)
 GIT_BRANCH:=$(shell git rev-parse --abbrev-ref HEAD -- | head -1)
+LATEST_GIT_COMMIT:=$(shell git log --format="%H" -n 1 | head -1)
 BUILD_USER:=$(shell whoami)
 BUILD_DATE:=$(shell date +"%Y-%m-%d")
 VERBOSE:=-v
@@ -17,7 +18,7 @@ all:
 	@rm -rf ../xcaddy-$(PLUGIN_NAME)/*
 	@mkdir -p ../xcaddy-$(PLUGIN_NAME) && cd ../xcaddy-$(PLUGIN_NAME) && \
 		xcaddy build v2.0.0-rc.3 --output ../$(PLUGIN_NAME)/bin/caddy \
-		--with github.com/greenpau/caddy-auth-saml@$(GIT_COMMIT) \
+		--with github.com/greenpau/caddy-auth-saml@$(LATEST_GIT_COMMIT) \
 		--with github.com/greenpau/caddy-auth-jwt@latest
 	@#bin/caddy run -environ -config assets/conf/Caddyfile.json
 

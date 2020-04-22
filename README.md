@@ -153,6 +153,10 @@ The UI template is Golang template. The template in
     ]
 ```
 
+The portal screen looks like this:
+
+![Portal - Access Authorized](./assets/docs/_static/images/access_authorized.png)
+
 ### JWT Token
 
 After a successful validation of a SAML assertion, the plugin issues
