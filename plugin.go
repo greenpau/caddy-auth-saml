@@ -30,9 +30,10 @@ type AuthProvider struct {
 // CommonParameters represent a common set of configuration settings, e.g.
 // authentication URL, Success Redirect URL, JWT token name and secret, etc.
 type CommonParameters struct {
-	AuthURLPath    string          `json:"auth_url_path,omitempty"`
-	SuccessURLPath string          `json:"success_url_path,omitempty"`
-	Jwt            TokenParameters `json:"jwt,omitempty"`
+	AuthURLPath     string          `json:"auth_url_path,omitempty"`
+	AutoRedirect    bool            `json:"auto_redirect,omitempty"`
+	AutoRedirectURL string          `json:"-"`
+	Jwt             TokenParameters `json:"jwt,omitempty"`
 }
 
 // TokenParameters represent JWT parameters of CommonParameters.
@@ -98,14 +99,31 @@ func (m *AuthProvider) Validate() error {
 	if m.Azure != nil {
 		m.Azure.logger = m.logger
 		m.Azure.Jwt = m.Jwt
+		m.Azure.AutoRedirect = m.AutoRedirect
 		if err := m.Azure.Validate(); err != nil {
 			return fmt.Errorf("%s: %s", m.Name, err)
+		}
+		if m.AutoRedirect && m.Azure.LoginURL != "" {
+			m.AutoRedirectURL = m.Azure.LoginURL
 		}
 		m.idpProviderCount++
 	}
 
+	// Perform IdP-related checks
 	if m.idpProviderCount == 0 {
 		return fmt.Errorf("%s: no valid IdP configuration found", m.Name)
+	}
+
+	if m.idpProviderCount != 1 {
+		m.AutoRedirect = false
+	}
+
+	if m.AutoRedirectURL == "" {
+		m.AutoRedirect = false
+	}
+
+	if !m.AutoRedirect {
+		m.AutoRedirectURL = ""
 	}
 
 	// Validate UI settings
@@ -194,13 +212,18 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 		zap.String("host", r.Host),
 	)
 
+	// Auto-redirect
+	if r.Method == "GET" && m.AutoRedirect {
+		return m.redirectToIdentityProvider(w, r, m.AutoRedirectURL)
+	}
+
 	// Authentication Requests
 	if r.Method == "POST" {
 		authFound := false
 		if requestPayload, acsURL, err := validateRequestCompliance(r); err == nil {
 			// Azure AD handler
-			if strings.Contains(r.Header.Get("Origin"), "login.microsoftonline.com") ||
-				strings.Contains(r.Header.Get("Referer"), "windowsazure.com") {
+			if m.Azure != nil && (strings.Contains(r.Header.Get("Origin"), "login.microsoftonline.com") ||
+				strings.Contains(r.Header.Get("Referer"), "windowsazure.com")) {
 				authFound = true
 				userIdentity, userToken, err = m.Azure.Authenticate(reqID, acsURL, requestPayload)
 				if err != nil {
@@ -266,6 +289,11 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 func (m AuthProvider) failAzureAuthentication(w http.ResponseWriter, err error) (caddyauth.User, bool, error) {
 	w.Header().Set("WWW-Authenticate", "Bearer")
 	return caddyauth.User{}, false, err
+}
+
+func (m AuthProvider) redirectToIdentityProvider(w http.ResponseWriter, r *http.Request, to string) (caddyauth.User, bool, error) {
+	http.Redirect(w, r, to, http.StatusPermanentRedirect)
+	return caddyauth.User{}, false, nil
 }
 
 // Interface guards

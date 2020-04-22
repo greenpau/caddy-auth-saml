@@ -13,6 +13,7 @@ SAML Authentication Plugin for [Caddy v2](https://github.com/caddyserver/caddy).
   * [Authentication Endpoint](#authentication-endpoint)
   * [User Interface (UI)](#user-interface-ui)
   * [JWT Token](#jwt-token)
+  * [Miscellaneous](#miscellaneous)
 
 * [Azure Active Directory (Office 365) Applications](#azure-active-directory-office-365-applications)
   * [Plugin Configuration](#plugin-configuration)
@@ -121,6 +122,8 @@ The UI template is Golang template. The template in
 `assets/ui/ui.template` is the default UI served by the plugin.
 
 * `template_location`: The location of a custom UI template
+* `auto_redirect_url`: If set, upon successful authentication,
+  the plugin redirects the request to the URL.
 * `allow_role_selection`: Enables or disables the ability to
   select a role after successful validation of a SAML assertion.
 
@@ -129,6 +132,25 @@ The UI template is Golang template. The template in
             "template_location": "assets/ui/ui.template",
             "allow_role_selection": false
           }
+```
+
+* `links`: If `auto_redirect_url` is not set upon successful
+  authentication, the plugin displays a portal page.
+  The portal page will have the links specified via this
+  parameter.
+
+```
+  "ui": {
+    "portal_links": [
+      {
+        "title": "Prometheus",
+        "link": "/prometheus"
+      },
+      {
+        "title": "Alertmanager",
+        "link": "/alertmanager"
+      }
+    ]
 ```
 
 ### JWT Token
@@ -154,6 +176,20 @@ The issued token will be passed to a requester via:
 
 * The cookie specified in `token_name` key
 * The `Authorization` header via `Bearer` directive
+
+### Miscellaneous
+
+The `auto_redirect` causes the plugin to redirect the user directly
+to IdP URL, without first displaying the UI. This parameter is
+disabled by default. If the configuration has a single IdP
+configured, it makes sence to enable it.
+
+```
+   "providers": {
+     "saml": {
+       "auth_url_path": "/saml",
+       "auto_redirect": true,
+```
 
 ## Azure Active Directory (Office 365) Applications
 

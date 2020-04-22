@@ -14,10 +14,12 @@ type UserInterface struct {
 	Template           *template.Template  `json:"-"`
 	Title              string              `json:"title,omitempty"`
 	LogoURL            string              `json:"logo_url,omitempty"`
-	LogoDescription    string              `json:"logo_description"`
+	LogoDescription    string              `json:"logo_description,omitempty"`
 	Links              []userInterfaceLink `json:"-"`
+	PortalLinks        []userInterfaceLink `json:"portal_links,omitempty"`
 	AuthEndpoint       string              `json:"-"`
-	LocalAuthEnabled   bool                `json:"local_auth_enabled"`
+	LocalAuthEnabled   bool                `json:"local_auth_enabled,omitempty"`
+	AutoRedirectURL    string              `json:"auto_redirect_url"`
 }
 
 type userInterfaceArgs struct {
@@ -28,14 +30,15 @@ type userInterfaceArgs struct {
 	Message          string
 	MessageType      string
 	Links            []userInterfaceLink
+	PortalLinks      []userInterfaceLink
 	LocalAuthEnabled bool
 	Authenticated    bool
 }
 
 type userInterfaceLink struct {
-	Link  string
-	Title string
-	Style string
+	Link  string `json:"link,omitempty"`
+	Title string `json:"title,omitempty"`
+	Style string `json:"style,omitempty"`
 }
 
 func (ui *UserInterface) newUserInterfaceArgs() userInterfaceArgs {
@@ -46,6 +49,7 @@ func (ui *UserInterface) newUserInterfaceArgs() userInterfaceArgs {
 		Links:            ui.Links,
 		AuthEndpoint:     ui.AuthEndpoint,
 		LocalAuthEnabled: ui.LocalAuthEnabled,
+		PortalLinks:      ui.PortalLinks,
 	}
 	return args
 }

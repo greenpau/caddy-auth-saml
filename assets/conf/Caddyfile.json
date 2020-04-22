@@ -22,6 +22,7 @@
                   "providers": {
                     "saml": {
                       "auth_url_path": "/saml",
+                      "auto_redirect": false,
                       "jwt": {
                         "token_name": "JWT_TOKEN",
                         "token_secret": "383aca9a-1c39-4d7a-b4d8-67ba4718dd3f",
@@ -44,7 +45,18 @@
                       },
                       "ui": {
                         "template_location": "assets/ui/ui.template",
-                        "allow_role_selection": false
+                        "allow_role_selection": false,
+                        "auto_redirect_url": "",
+                        "portal_links": [
+                          {
+                            "title": "Prometheus",
+                            "link": "/prometheus"
+                          },
+                          {
+                            "title": "Alertmanager",
+                            "link": "/alertmanager"
+                          }
+                        ]
                       }
                     }
                   }
