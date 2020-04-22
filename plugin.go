@@ -276,14 +276,14 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 		return m.failAzureAuthentication(w, nil)
 	}
 
-	w.WriteHeader(http.StatusOK)
 	m.logger.Debug(
-		"Authentication succeededX",
+		"Authentication succeeded",
 		zap.String("request_id", reqID),
 		zap.String("user_id", userIdentity.ID),
 	)
 
 	w.Header().Set("Authorization", "Bearer "+userToken)
+	w.Header().Set("Set-Cookie", m.Jwt.TokenName+"="+userToken+" Secure; HttpOnly;")
 	return *userIdentity, true, nil
 }
 
