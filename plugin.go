@@ -70,7 +70,7 @@ func (m *AuthProvider) Validate() error {
 	}
 
 	if m.Jwt.TokenName == "" {
-		m.Jwt.TokenName = "JWT_TOKEN"
+		m.Jwt.TokenName = "access_token"
 	}
 	m.logger.Info(
 		"found JWT token name",
@@ -237,12 +237,6 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 				} else {
 					userAuthenticated = true
 					uiArgs.Authenticated = true
-					w.WriteHeader(http.StatusOK)
-					m.logger.Debug(
-						"Authentication succeeded",
-						zap.String("request_id", reqID),
-						zap.String("user_id", userIdentity.ID),
-					)
 				}
 			}
 		} else {
@@ -281,6 +275,13 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 	if !userAuthenticated {
 		return m.failAzureAuthentication(w, nil)
 	}
+
+	w.WriteHeader(http.StatusOK)
+	m.logger.Debug(
+		"Authentication succeededX",
+		zap.String("request_id", reqID),
+		zap.String("user_id", userIdentity.ID),
+	)
 
 	w.Header().Set("Authorization", "Bearer "+userToken)
 	return *userIdentity, true, nil

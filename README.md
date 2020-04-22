@@ -65,7 +65,7 @@ The output is:
         "saml": {
           "auth_url_path": "/saml",
           "jwt": {
-            "token_name": "JWT_TOKEN",
+            "token_name": "access_token",
             "token_secret": "383aca9a-1c39-4d7a-b4d8-67ba4718dd3f",
             "token_issuer": "7a50e023-2c6e-4a5e-913e-23ecd0e2b940"
           },
@@ -170,7 +170,7 @@ a JWT token.
 
 ```json
           "jwt": {
-            "token_name": "JWT_TOKEN",
+            "token_name": "access_token",
             "token_secret": "383aca9a-1c39-4d7a-b4d8-67ba4718dd3f",
             "token_issuer": "7a50e023-2c6e-4a5e-913e-23ecd0e2b940"
           },

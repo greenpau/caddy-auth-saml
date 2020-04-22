@@ -6,6 +6,7 @@ GIT_BRANCH:=$(shell git rev-parse --abbrev-ref HEAD -- | head -1)
 LATEST_GIT_COMMIT:=$(shell git log --format="%H" -n 1 | head -1)
 BUILD_USER:=$(shell whoami)
 BUILD_DATE:=$(shell date +"%Y-%m-%d")
+BUILD_DIR:=$(shell pwd)
 VERBOSE:=-v
 ifdef TEST
 	TEST:="-run ${TEST}"
@@ -18,7 +19,7 @@ all:
 	@rm -rf ../xcaddy-$(PLUGIN_NAME)/*
 	@mkdir -p ../xcaddy-$(PLUGIN_NAME) && cd ../xcaddy-$(PLUGIN_NAME) && \
 		xcaddy build v2.0.0-rc.3 --output ../$(PLUGIN_NAME)/bin/caddy \
-		--with github.com/greenpau/caddy-auth-saml@$(LATEST_GIT_COMMIT) \
+		--with github.com/greenpau/caddy-auth-saml@$(LATEST_GIT_COMMIT)=$(BUILD_DIR) \
 		--with github.com/greenpau/caddy-auth-jwt@latest
 	@#bin/caddy run -environ -config assets/conf/Caddyfile.json
 
