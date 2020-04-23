@@ -93,16 +93,12 @@ func (ui *UserInterface) getBytes(args userInterfaceArgs) (*bytes.Buffer, error)
 	return b, nil
 }
 
-func (ui *UserInterface) render(w http.ResponseWriter, args userInterfaceArgs) error {
+func (ui *UserInterface) render(w http.ResponseWriter, args userInterfaceArgs) (*bytes.Buffer, error) {
 	b, err := ui.getBytes(args)
 	if err != nil {
 		w.WriteHeader(500)
 		w.Write([]byte(`Internal Server Error`))
-		return err
+		return nil, err
 	}
-
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	w.Header().Set("Content-Type", "text/html")
-	w.Write(b.Bytes())
-	return nil
+	return b, nil
 }

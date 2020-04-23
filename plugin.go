@@ -197,6 +197,8 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 	var userToken string
 	var userAuthenticated bool
 
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+
 	uiArgs := m.UI.newUserInterfaceArgs()
 
 	// Generate request UUID
@@ -262,7 +264,9 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 	}
 
 	// Render UI
-	uiErr := m.UI.render(w, uiArgs)
+	contentType := "text/html"
+	w.Header().Set("Content-Type", contentType)
+	content, uiErr := m.UI.render(w, uiArgs)
 	if uiErr != nil {
 		m.logger.Error(
 			"Failed UI",
@@ -273,6 +277,9 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 
 	// Wrap up
 	if !userAuthenticated {
+		if uiErr == nil {
+			w.Write(content.Bytes())
+		}
 		return m.failAzureAuthentication(w, nil)
 	}
 
@@ -284,6 +291,7 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 
 	w.Header().Set("Authorization", "Bearer "+userToken)
 	w.Header().Set("Set-Cookie", m.Jwt.TokenName+"="+userToken+" Secure; HttpOnly;")
+	w.Write(content.Bytes())
 	return *userIdentity, true, nil
 }
 
