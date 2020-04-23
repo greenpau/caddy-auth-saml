@@ -195,6 +195,16 @@ configured, it makes sence to enable it.
        "auto_redirect": true,
 ```
 
+The addition of `?logout=true` to URL query causes the plugin to send cookie
+delete signals to a client.
+
+The addition of `?redirect_url=/alertmanager` to URL query causes the plugin
+to redirect a client to the path upon a successful authentication.
+
+```
+https://app:3443/saml?redirect_url=/alertmanager
+```
+
 ## Azure Active Directory (Office 365) Applications
 
 ### Plugin Configuration

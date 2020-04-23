@@ -9,7 +9,8 @@ import (
 	jwt "github.com/greenpau/caddy-auth-jwt"
 	"go.uber.org/zap"
 	"net/http"
-	"net/http/httputil"
+	//"net/http/httputil"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -199,11 +200,9 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 	var userToken string
 	var userAuthenticated bool
 
-	//w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-
-	if rb, err := httputil.DumpRequest(r, true); err == nil {
-		m.logger.Debug(fmt.Sprintf("%s", rb))
-	}
+	//if rb, err := httputil.DumpRequest(r, true); err == nil {
+	//	m.logger.Debug(fmt.Sprintf("%s", rb))
+	//}
 
 	uiArgs := m.UI.newUserInterfaceArgs()
 
@@ -220,7 +219,21 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 		zap.String("host", r.Host),
 	)
 
-	// Auto-redirect
+	// Handle query parameters
+	if r.Method == "GET" {
+		q := r.URL.Query()
+		if _, exists := q["logout"]; exists {
+			for _, k := range []string{"saml_plugin_redirect_url", m.Jwt.TokenName} {
+				w.Header().Add("Set-Cookie", k+"=delete; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT")
+			}
+		} else {
+			if redirectURL, exists := q["redirect_url"]; exists {
+				w.Header().Set("Set-Cookie", "saml_plugin_redirect_url="+redirectURL[0])
+			}
+		}
+	}
+
+	// Auto-redirect to IdP
 	if r.Method == "GET" && m.AutoRedirect {
 		return m.redirectToIdentityProvider(w, r, m.AutoRedirectURL)
 	}
@@ -271,7 +284,6 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 
 	// Render UI
 	contentType := "text/html"
-	w.Header().Set("Content-Type", contentType)
 	content, uiErr := m.UI.render(w, uiArgs)
 	if uiErr != nil {
 		m.logger.Error(
@@ -284,6 +296,7 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 	// Wrap up
 	if !userAuthenticated {
 		if uiErr == nil {
+			w.Header().Set("Content-Type", contentType)
 			w.Write(content.Bytes())
 		}
 		return m.failAzureAuthentication(w, nil)
@@ -306,6 +319,28 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 
 	w.Header().Set("Authorization", "Bearer "+userToken)
 	w.Header().Set("Set-Cookie", m.Jwt.TokenName+"="+userToken+" Secure; HttpOnly;")
+	if cookie, err := r.Cookie("saml_plugin_redirect_url"); err == nil {
+		if redirectURL, err := url.Parse(cookie.Value); err == nil {
+			m.logger.Debug(
+				"Cookie-based redirect",
+				zap.String("request_id", reqID),
+				zap.String("user_id", userIdentity.ID),
+				zap.String("redirect_url", redirectURL.String()),
+			)
+			w.Header().Set("Location", redirectURL.String())
+			w.Header().Add("Set-Cookie", "saml_plugin_redirect_url=delete; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT")
+			w.WriteHeader(303)
+			return userIdentity, true, nil
+		}
+	}
+
+	if m.UI.AutoRedirectURL != "" {
+		w.Header().Set("Location", m.UI.AutoRedirectURL)
+		w.WriteHeader(303)
+		return userIdentity, true, nil
+	}
+
+	w.Header().Set("Content-Type", contentType)
 	w.Write(content.Bytes())
 	return userIdentity, true, nil
 }
