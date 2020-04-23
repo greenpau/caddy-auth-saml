@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	//"github.com/caddyserver/caddy/v2"
-	"github.com/caddyserver/caddy/v2/modules/caddyhttp/caddyauth"
 	samllib "github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
 	jwt "github.com/greenpau/caddy-auth-jwt"
@@ -47,10 +45,7 @@ type AzureIdp struct {
 }
 
 // Authenticate parses and validates SAML Response originating at Azure Active Directory.
-func (az *AzureIdp) Authenticate(reqID, acsURL string, samlpResponse []byte) (*caddyauth.User, string, error) {
-	// TODO: remove log
-	//az.logger.Error(fmt.Sprintf("%s", samlpResponse))
-	//az.logger.Error(fmt.Sprintf("ACS: %s", acsURL))
+func (az *AzureIdp) Authenticate(reqID, acsURL string, samlpResponse []byte) (*jwt.UserClaims, string, error) {
 	sp, exists := az.ServiceProviders[acsURL]
 	if !exists {
 		return nil, "", fmt.Errorf("Unsupported ACS URL %s", acsURL)
@@ -61,7 +56,7 @@ func (az *AzureIdp) Authenticate(reqID, acsURL string, samlpResponse []byte) (*c
 		return nil, "", err
 	}
 
-	claims := jwt.UserClaims{}
+	claims := &jwt.UserClaims{}
 	claims.ExpiresAt = time.Now().Add(time.Duration(900) * time.Second).Unix()
 
 	for _, attrStatement := range samlAssertions.AttributeStatements {
@@ -124,21 +119,12 @@ func (az *AzureIdp) Authenticate(reqID, acsURL string, samlpResponse []byte) (*c
 		claims.Issuer = az.Jwt.TokenIssuer
 	}
 
-	user := &caddyauth.User{
-		ID: claims.Email,
-		Metadata: map[string]string{
-			"name":  claims.Name,
-			"email": claims.Email,
-			"roles": strings.Join(claims.Roles, " "),
-		},
-	}
-
-	token, err := jwt.GetToken("HS512", []byte(az.Jwt.TokenSecret), claims)
+	token, err := jwt.GetToken("HS512", []byte(az.Jwt.TokenSecret), *claims)
 	if err != nil {
-		return nil, "", fmt.Errorf("Failed to issue JWT token with %v claims: %s", claims, err)
+		return nil, "", fmt.Errorf("Failed to issue JWT token with %v claims: %s", *claims, err)
 	}
 
-	return user, token, nil
+	return claims, token, nil
 }
 
 // Validate performs configuration validation

@@ -6,8 +6,10 @@ import (
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp/caddyauth"
 	"github.com/google/uuid"
+	jwt "github.com/greenpau/caddy-auth-jwt"
 	"go.uber.org/zap"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"strings"
 )
@@ -193,11 +195,15 @@ func validateRequestCompliance(r *http.Request) ([]byte, string, error) {
 // Authenticate validates the user credentials in and returns a user identity, if valid.
 func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (caddyauth.User, bool, error) {
 	var reqID string
-	var userIdentity *caddyauth.User
+	var userClaims *jwt.UserClaims
 	var userToken string
 	var userAuthenticated bool
 
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	//w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+
+	if rb, err := httputil.DumpRequest(r, true); err == nil {
+		m.logger.Debug(fmt.Sprintf("%s", rb))
+	}
 
 	uiArgs := m.UI.newUserInterfaceArgs()
 
@@ -227,7 +233,7 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 			if m.Azure != nil && (strings.Contains(r.Header.Get("Origin"), "login.microsoftonline.com") ||
 				strings.Contains(r.Header.Get("Referer"), "windowsazure.com")) {
 				authFound = true
-				userIdentity, userToken, err = m.Azure.Authenticate(reqID, acsURL, requestPayload)
+				userClaims, userToken, err = m.Azure.Authenticate(reqID, acsURL, requestPayload)
 				if err != nil {
 					uiArgs.Message = "Authentication failed"
 					w.WriteHeader(http.StatusUnauthorized)
@@ -283,6 +289,15 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 		return m.failAzureAuthentication(w, nil)
 	}
 
+	userIdentity := caddyauth.User{
+		ID: userClaims.Email,
+		Metadata: map[string]string{
+			"name":  userClaims.Name,
+			"email": userClaims.Email,
+			"roles": strings.Join(userClaims.Roles, " "),
+		},
+	}
+
 	m.logger.Debug(
 		"Authentication succeeded",
 		zap.String("request_id", reqID),
@@ -292,7 +307,7 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 	w.Header().Set("Authorization", "Bearer "+userToken)
 	w.Header().Set("Set-Cookie", m.Jwt.TokenName+"="+userToken+" Secure; HttpOnly;")
 	w.Write(content.Bytes())
-	return *userIdentity, true, nil
+	return userIdentity, true, nil
 }
 
 func (m AuthProvider) failAzureAuthentication(w http.ResponseWriter, err error) (caddyauth.User, bool, error) {

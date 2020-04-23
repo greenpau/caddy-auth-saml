@@ -104,6 +104,40 @@
                 }
               ],
               "terminal": true
+            },
+            {
+              "handle": [
+                {
+                  "body": "prometheus",
+                  "handler": "static_response",
+                  "status_code": 200
+                }
+              ],
+              "match": [
+                {
+                  "path": [
+                    "/prometheus"
+                  ]
+                }
+              ],
+              "terminal": true
+            },
+            {
+              "handle": [
+                {
+                  "body": "alertmanager",
+                  "handler": "static_response",
+                  "status_code": 200
+                }
+              ],
+              "match": [
+                {
+                  "path": [
+                    "/alertmanager"
+                  ]
+                }
+              ],
+              "terminal": true
             }
           ],
           "tls_connection_policies": [
