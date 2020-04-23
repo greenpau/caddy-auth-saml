@@ -23,14 +23,11 @@ SAML Authentication Plugin for [Caddy v2](https://github.com/caddyserver/caddy).
   * [User Interface Options](#user-interface-options)
   * [Development Notes](#development-notes)
 
-* [AWS Cognito](#aws-cognito)
-
 <!-- end-markdown-toc -->
 
 The plugin supports the following identity providers:
 
 * [Azure Active Directory (Office 365) Applications](#azure-active-directory-office-365-applications)
-* [AWS Cognito](#aws-cognito)
 
 ## Getting Started
 
@@ -429,7 +426,3 @@ Upgrade-Insecure-Requests: 1
 
 The above redirect contains `login.microsoftonline.com` in the request's
 `Referer` header. It is the trigger to perform SAML-based authorization.
-
-## AWS Cognito
-
-TODO.
