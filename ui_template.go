@@ -49,7 +49,7 @@ var defaultUserInterface = `<!doctype html>
           </div>
           {{ end }}
 
-          {{range .Links}}
+          {{range .PublicLinks}}
           <div class="pb-2 p-1">
             <a class="btn btn-primary btn-lg btn-block" href="{{ .Link }}">
               <span class="fab {{ .Style }}"></span> {{ .Title }}
@@ -63,7 +63,7 @@ var defaultUserInterface = `<!doctype html>
         <h2>Welcome</h2>
         <p class="lead">Access the following services.</p>
         <ul class="list-group mb-3 pb-2">
-          {{range .PortalLinks}}
+          {{range .PrivateLinks}}
           <li class="list-group-item d-flex justify-content-between lh-condensed">
             <div>
               <h5 class="my-0"><a href="{{ .Link }}">{{ .Title }}</a></h6>
@@ -71,7 +71,7 @@ var defaultUserInterface = `<!doctype html>
           </li>
           {{ end }}
         </ul>
-        <a href="{{ .AuthEndpoint }}?logout=true" class="btn btn-primary btn-lg active" role="button" aria-pressed="true">Logout</a>
+        <a href="{{ .ActionEndpoint }}?logout=true" class="btn btn-primary btn-lg active" role="button" aria-pressed="true">Logout</a>
       </div>
       {{ end }}
     </div>

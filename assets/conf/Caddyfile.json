@@ -47,7 +47,7 @@
                         "template_location": "assets/ui/ui.template",
                         "allow_role_selection": false,
                         "auto_redirect_url": "",
-                        "portal_links": [
+                        "private_links": [
                           {
                             "title": "Prometheus",
                             "link": "/prometheus"

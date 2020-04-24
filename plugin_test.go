@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"github.com/caddyserver/caddy/v2/caddytest"
 	//"github.com/ma314smith/signedxml"
+	"github.com/greenpau/caddy-auth-ui"
 	"io/ioutil"
 	"log"
 	"net"
@@ -298,23 +299,28 @@ func TestPlugin(t *testing.T) {
 
 	// Load configuration file
 	configFile := "assets/conf/Caddyfile.json"
-	rawConfig, err := readFile(configFile)
+	configContent, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		t.Fatalf("Failed to load configuration file %s: %s", configFile, err)
 	}
+	rawConfig := string(configContent)
 
 	// Setup User Interface
-	ui := &UserInterface{}
-	if err := ui.validate(); err != nil {
-		t.Fatalf("Failed to validate UI: %s", err)
-	}
-	ui.AuthEndpoint = "/saml"
-	link := userInterfaceLink{
+	uiFactory := ui.NewUserInterfaceFactory()
+	uiFactory.Title = "Sign In"
+	uiFactory.ActionEndpoint = "/saml"
+
+	link := ui.UserInterfaceLink{
 		Link:  getAzureURL(appName, appID, tenantID),
 		Title: "Office 365",
 		Style: "fa-windows",
 	}
-	ui.Links = append(ui.Links, link)
+
+	uiFactory.PublicLinks = append(uiFactory.PublicLinks, link)
+
+	if err := uiFactory.AddTemplate("login", "assets/ui/ui.template"); err != nil {
+		t.Fatalf("Failed to load UI template: %s", err)
+	}
 
 	// Create a template for SAML POST requests
 	authRequestTemplate := template.New("AzureAuthRequest")
@@ -341,12 +347,13 @@ func TestPlugin(t *testing.T) {
 	caddytest.AssertGetResponse(t, baseURL+"/version", 200, "1.0.0")
 
 	t.Logf("Test getting to a sign in screen")
-	uiArgs := ui.newUserInterfaceArgs()
-	expResponseBytes, err := ui.getBytes(uiArgs)
+	uiArgs := uiFactory.GetArgs()
+	expResponseBytes, err := uiFactory.Render("login", uiArgs)
 	if err != nil {
 		t.Fatalf("error generating UI response: %s", err)
 	}
-	expResponse = renderFlatString(expResponseBytes)
+	//expResponse = renderFlatString(expResponseBytes)
+	expResponse = expResponseBytes.String()
 	caddytest.AssertGetResponse(t, baseURL+"/saml", 200, expResponse)
 
 	// Test SAML validation with valid payload - Azure
@@ -356,11 +363,12 @@ func TestPlugin(t *testing.T) {
 		"Origin: https://login.microsoftonline.com",
 		"Referer: https://login.microsoftonline.com/",
 	}
-	expResponseBytes, err = ui.getBytes(uiArgs)
+	expResponseBytes, err = uiFactory.Render("login", uiArgs)
 	if err != nil {
 		t.Fatalf("error generating UI response: %s", err)
 	}
-	expResponse = renderFlatString(expResponseBytes)
+	//expResponse = renderFlatString(expResponseBytes)
+	expResponse = expResponseBytes.String()
 	authRequestPayloadPlain = bytes.NewBuffer(nil)
 	if err := authRequestTemplate.Execute(authRequestPayloadPlain, authRequestParams); err != nil {
 		t.Fatalf("error generating auth request payload: %s", err)
@@ -403,11 +411,12 @@ func TestPlugin(t *testing.T) {
 		"Origin: https://login.microsoftonline.com",
 		"Referer: https://login.microsoftonline.com/",
 	}
-	expResponseBytes, err = ui.getBytes(uiArgs)
+	expResponseBytes, err = uiFactory.Render("login", uiArgs)
 	if err != nil {
 		t.Fatalf("error generating UI response: %s", err)
 	}
-	expResponse = renderFlatString(expResponseBytes)
+	//expResponse = renderFlatString(expResponseBytes)
+	expResponse = expResponseBytes.String()
 	AssertPostResponse(t, baseURL+"/saml", authRequestHeaders, authRequestPayloadPlain, 400, expResponse)
 
 	time.Sleep(1 * time.Millisecond)

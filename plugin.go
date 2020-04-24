@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	//"net/http/httputil"
+	"github.com/greenpau/caddy-auth-ui"
 	"net/url"
 	"os"
 	"strings"
@@ -24,10 +25,11 @@ func init() {
 type AuthProvider struct {
 	Name string `json:"-"`
 	CommonParameters
-	Azure            *AzureIdp      `json:"azure,omitempty"`
-	UI               *UserInterface `json:"ui,omitempty"`
-	logger           *zap.Logger    `json:"-"`
-	idpProviderCount uint64         `json:"-"`
+	UserInterface    *UserInterfaceParameters `json:"ui,omitempty"`
+	Azure            *AzureIdp                `json:"azure,omitempty"`
+	logger           *zap.Logger              `json:"-"`
+	idpProviderCount uint64                   `json:"-"`
+	uiFactory        *ui.UserInterfaceFactory `json:"-"`
 }
 
 // CommonParameters represent a common set of configuration settings, e.g.
@@ -37,6 +39,18 @@ type CommonParameters struct {
 	AutoRedirect    bool            `json:"auto_redirect,omitempty"`
 	AutoRedirectURL string          `json:"-"`
 	Jwt             TokenParameters `json:"jwt,omitempty"`
+}
+
+// UserInterfaceParameters represent a common set of configuration settings
+// for HTML UI.
+type UserInterfaceParameters struct {
+	TemplateLocation   string                 `json:"template_location,omitempty"`
+	AllowRoleSelection bool                   `json:"allow_role_selection,omitempty"`
+	Title              string                 `json:"title,omitempty"`
+	LogoURL            string                 `json:"logo_url,omitempty"`
+	LogoDescription    string                 `json:"logo_description,omitempty"`
+	PrivateLinks       []ui.UserInterfaceLink `json:"private_links,omitempty"`
+	AutoRedirectURL    string                 `json:"auto_redirect_url"`
 }
 
 // TokenParameters represent JWT parameters of CommonParameters.
@@ -65,13 +79,14 @@ func (m *AuthProvider) Provision(ctx caddy.Context) error {
 
 // Validate implements caddy.Validator.
 func (m *AuthProvider) Validate() error {
-	m.logger.Info("validating plugin UI Settings")
+	m.logger.Info("validating plugin settings")
 	m.idpProviderCount = 0
 
 	if m.AuthURLPath == "" {
 		return fmt.Errorf("%s: authentication endpoint cannot be empty, try setting auth_url_path to /saml", m.Name)
 	}
 
+	m.logger.Info("validating plugin JWT settings")
 	if m.Jwt.TokenName == "" {
 		m.Jwt.TokenName = "access_token"
 	}
@@ -130,22 +145,50 @@ func (m *AuthProvider) Validate() error {
 	}
 
 	// Validate UI settings
-	if m.UI == nil {
-		m.UI = &UserInterface{}
+	if m.UserInterface == nil {
+		m.UserInterface = &UserInterfaceParameters{}
 	}
 
-	if err := m.UI.validate(); err != nil {
-		return fmt.Errorf("%s: UI settings validation error: %s", m.Name, err)
+	m.uiFactory = ui.NewUserInterfaceFactory()
+	if m.UserInterface.Title == "" {
+		m.uiFactory.Title = "Sign In"
+	} else {
+		m.uiFactory.Title = m.UserInterface.Title
+	}
+	if m.UserInterface.LogoURL != "" {
+		m.uiFactory.LogoURL = m.UserInterface.LogoURL
+		m.uiFactory.LogoDescription = m.UserInterface.LogoDescription
 	}
 
-	m.UI.AuthEndpoint = m.AuthURLPath
+	m.uiFactory.ActionEndpoint = m.AuthURLPath
+
 	if m.Azure != nil {
-		link := userInterfaceLink{
+		link := ui.UserInterfaceLink{
 			Link:  m.Azure.LoginURL,
 			Title: "Office 365",
 			Style: "fa-windows",
 		}
-		m.UI.Links = append(m.UI.Links, link)
+		m.uiFactory.PublicLinks = append(m.uiFactory.PublicLinks, link)
+	}
+
+	if len(m.UserInterface.PrivateLinks) > 0 {
+		m.uiFactory.PrivateLinks = m.UserInterface.PrivateLinks
+	}
+
+	if m.UserInterface.TemplateLocation != "" {
+		if err := m.uiFactory.AddTemplate("login", m.UserInterface.TemplateLocation); err != nil {
+			return fmt.Errorf(
+				"%s: UI settings validation error, failed loading template from %s: %s",
+				m.Name, m.UserInterface.TemplateLocation, err,
+			)
+		}
+	} else {
+		if err := m.uiFactory.AddBuiltinTemplate("saml_login"); err != nil {
+			return fmt.Errorf(
+				"%s: UI settings validation error, failed loading built-in saml_login template: %s",
+				m.Name, err,
+			)
+		}
 	}
 
 	return nil
@@ -204,7 +247,7 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 	//	m.logger.Debug(fmt.Sprintf("%s", rb))
 	//}
 
-	uiArgs := m.UI.newUserInterfaceArgs()
+	uiArgs := m.uiFactory.GetArgs()
 
 	// Generate request UUID
 	reqID = uuid.New().String()
@@ -284,22 +327,23 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 
 	// Render UI
 	contentType := "text/html"
-	content, uiErr := m.UI.render(w, uiArgs)
+	content, uiErr := m.uiFactory.Render("login", uiArgs)
 	if uiErr != nil {
 		m.logger.Error(
 			"Failed UI",
 			zap.String("request_id", reqID),
 			zap.String("error", uiErr.Error()),
 		)
+		w.WriteHeader(500)
+		w.Write([]byte(`Internal Server Error`))
+		return caddyauth.User{}, false, uiErr
 	}
 
 	// Wrap up
 	if !userAuthenticated {
-		if uiErr == nil {
-			w.Header().Set("Content-Type", contentType)
-			w.Write(content.Bytes())
-		}
-		return m.failAzureAuthentication(w, nil)
+		w.Header().Set("Content-Type", contentType)
+		w.Write(content.Bytes())
+		return caddyauth.User{}, false, nil
 	}
 
 	userIdentity := caddyauth.User{
@@ -334,8 +378,8 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 		}
 	}
 
-	if m.UI.AutoRedirectURL != "" {
-		w.Header().Set("Location", m.UI.AutoRedirectURL)
+	if m.UserInterface.AutoRedirectURL != "" {
+		w.Header().Set("Location", m.UserInterface.AutoRedirectURL)
 		w.WriteHeader(303)
 		return userIdentity, true, nil
 	}
@@ -343,11 +387,6 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 	w.Header().Set("Content-Type", contentType)
 	w.Write(content.Bytes())
 	return userIdentity, true, nil
-}
-
-func (m AuthProvider) failAzureAuthentication(w http.ResponseWriter, err error) (caddyauth.User, bool, error) {
-	w.Header().Set("WWW-Authenticate", "Bearer")
-	return caddyauth.User{}, false, err
 }
 
 func (m AuthProvider) redirectToIdentityProvider(w http.ResponseWriter, r *http.Request, to string) (caddyauth.User, bool, error) {

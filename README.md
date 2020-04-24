@@ -125,7 +125,9 @@ matching `/saml` would end at the above handler.
 The UI template is Golang template. The template in
 `assets/ui/ui.template` is the default UI served by the plugin.
 
-* `template_location`: The location of a custom UI template
+* `template_location`: The location of a custom UI template. The
+  UI template must conform to the standards set in
+  [caddy-auth-ui](https://github.com/greenpau/caddy-auth-ui).
 * `auto_redirect_url`: If set, upon successful authentication,
   the plugin redirects the request to the URL.
 * `allow_role_selection`: Enables or disables the ability to
@@ -138,14 +140,13 @@ The UI template is Golang template. The template in
           }
 ```
 
-* `links`: If `auto_redirect_url` is not set upon successful
-  authentication, the plugin displays a portal page.
-  The portal page will have the links specified via this
-  parameter.
+* `private_links`: If `auto_redirect_url` is not set upon successful
+  authentication, the plugin displays a portal page. The portal page
+  will have the links specified via this parameter.
 
 ```
   "ui": {
-    "portal_links": [
+    "private_links": [
       {
         "title": "Prometheus",
         "link": "/prometheus"
