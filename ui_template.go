@@ -26,8 +26,6 @@ var defaultUserInterface = `<!doctype html>
         body { padding-top: 0px; }
       }
       h2 { color: #5a6268 !important; }
-      hr { overflow: visible; padding: 0.5em; border: none; border-top: 1.5px solid #5a6268; color: #5a6268; text-align: center; }
-      hr:after { content: "or"; display: inline-block; position: relative; top: -1.3em; font-size: 1.35em; padding: 0 0.25em; background: white; }
     </style>
 
   </head>
@@ -58,17 +56,6 @@ var defaultUserInterface = `<!doctype html>
             </a>
           </div>
           {{ end }}
-          {{ if .LocalAuthEnabled }}
-          <hr />
-          <form action="{{ .AuthEndpoint }}" method="POST" role="form" class="card p-2">
-            <div class="input-group">
-              <input name="token" type="password" class="form-control" placeholder="token">
-              <div class="input-group-append">
-                <button type="submit" class="btn btn-secondary">Authenticate</button>
-              </div>
-            </div>
-          </form>
-          {{ end }}
         </div>
       </div>
       {{ else }}
@@ -84,7 +71,7 @@ var defaultUserInterface = `<!doctype html>
           </li>
           {{ end }}
         </ul>
-	<a href="{{ .AuthEndpoint }}?logout=true" class="btn btn-primary btn-lg active" role="button" aria-pressed="true">Logout</a>
+        <a href="{{ .AuthEndpoint }}?logout=true" class="btn btn-primary btn-lg active" role="button" aria-pressed="true">Logout</a>
       </div>
       {{ end }}
     </div>

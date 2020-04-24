@@ -18,7 +18,6 @@ type UserInterface struct {
 	Links              []userInterfaceLink `json:"-"`
 	PortalLinks        []userInterfaceLink `json:"portal_links,omitempty"`
 	AuthEndpoint       string              `json:"-"`
-	LocalAuthEnabled   bool                `json:"local_auth_enabled,omitempty"`
 	AutoRedirectURL    string              `json:"auto_redirect_url"`
 }
 
@@ -43,13 +42,12 @@ type userInterfaceLink struct {
 
 func (ui *UserInterface) newUserInterfaceArgs() userInterfaceArgs {
 	args := userInterfaceArgs{
-		Title:            ui.Title,
-		LogoURL:          ui.LogoURL,
-		LogoDescription:  ui.LogoDescription,
-		Links:            ui.Links,
-		AuthEndpoint:     ui.AuthEndpoint,
-		LocalAuthEnabled: ui.LocalAuthEnabled,
-		PortalLinks:      ui.PortalLinks,
+		Title:           ui.Title,
+		LogoURL:         ui.LogoURL,
+		LogoDescription: ui.LogoDescription,
+		Links:           ui.Links,
+		AuthEndpoint:    ui.AuthEndpoint,
+		PortalLinks:     ui.PortalLinks,
 	}
 	return args
 }
