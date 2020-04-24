@@ -44,7 +44,6 @@ coverage:
 	@go tool cover -func=.coverage/coverage.out | grep -v "100.0"
 
 misc:
-	@./assets/scripts/generate_ui.sh
 	@python3 assets/scripts/test_app_signing_cert.py > assets/scripts/test_app_signing_cert.xml
 
 docs:
