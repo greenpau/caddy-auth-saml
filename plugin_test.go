@@ -19,7 +19,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"testing"
 	"text/template"
@@ -40,24 +39,6 @@ func getSigningKey(fp string) (*rsa.PrivateKey, error) {
 		return nil, err
 	}
 	return key, nil
-}
-
-func renderFlatString(b *bytes.Buffer) string {
-	s := b.String()
-	s = strings.Replace(s, "\n", "", -1)
-	dups := regexp.MustCompile(`\s+`)
-	s = dups.ReplaceAllString(s, " ")
-	s = strings.Replace(s, "> <", "><", -1)
-
-	s = strings.Replace(s, "<style> body", "<style>body", -1)
-	s = strings.Replace(s, "} @media", "}@media", -1)
-	s = strings.Replace(s, "{ body {", "{body {", -1)
-	s = strings.Replace(s, "} } h2", "}}h2", -1)
-	s = strings.Replace(s, "} hr", "}hr", -1)
-	s = strings.Replace(s, "} hr:after", "}hr:after", -1)
-	s = strings.Replace(s, "} </style>", "}</style>", -1)
-	s = strings.Replace(s, "Office 365 </a>", "Office 365</a>", -1)
-	return s
 }
 
 // creates a testing transport that forces call dialing connections to happen locally
@@ -284,7 +265,6 @@ var authRequestTemplateBody = `<samlp:Response ID="_9eefb041-27fe-4014-bf4b-932c
 </samlp:Response>`
 
 func TestPlugin(t *testing.T) {
-	var expResponse string
 	var authRequestHeaders []string
 	var authRequestPayloadPlain *bytes.Buffer
 	var authRequestPayload *bytes.Buffer
@@ -352,9 +332,7 @@ func TestPlugin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error generating UI response: %s", err)
 	}
-	//expResponse = renderFlatString(expResponseBytes)
-	expResponse = expResponseBytes.String()
-	caddytest.AssertGetResponse(t, baseURL+"/saml", 200, expResponse)
+	caddytest.AssertGetResponse(t, baseURL+"/saml", 200, expResponseBytes.String())
 
 	// Test SAML validation with valid payload - Azure
 	t.Logf("Test SAML validation with valid payload - Azure")
@@ -367,8 +345,6 @@ func TestPlugin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error generating UI response: %s", err)
 	}
-	//expResponse = renderFlatString(expResponseBytes)
-	expResponse = expResponseBytes.String()
 	authRequestPayloadPlain = bytes.NewBuffer(nil)
 	if err := authRequestTemplate.Execute(authRequestPayloadPlain, authRequestParams); err != nil {
 		t.Fatalf("error generating auth request payload: %s", err)
@@ -401,7 +377,7 @@ func TestPlugin(t *testing.T) {
 
 	authRequestPayload.WriteString(encodedauthRequestPayload)
 
-	//AssertPostResponse(t, baseURL+"/saml", authRequestHeaders, authRequestPayload, 401, expResponse)
+	//AssertPostResponse(t, baseURL+"/saml", authRequestHeaders, authRequestPayload, 401, expResponseBytes.String())
 
 	// Test SAML validation with invalid payload - No SAMLResponse form field
 	t.Logf("Test SAML validation with invalid payload - No SAMLResponse form field")
@@ -415,9 +391,7 @@ func TestPlugin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error generating UI response: %s", err)
 	}
-	//expResponse = renderFlatString(expResponseBytes)
-	expResponse = expResponseBytes.String()
-	AssertPostResponse(t, baseURL+"/saml", authRequestHeaders, authRequestPayloadPlain, 400, expResponse)
+	AssertPostResponse(t, baseURL+"/saml", authRequestHeaders, authRequestPayloadPlain, 400, expResponseBytes.String())
 
 	time.Sleep(1 * time.Millisecond)
 	// Uncomment the below line to perform manual testing
