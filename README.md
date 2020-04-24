@@ -29,6 +29,13 @@ The plugin supports the following identity providers:
 
 * [Azure Active Directory (Office 365) Applications](#azure-active-directory-office-365-applications)
 
+If you would like to see the support for the following identity providers,
+please reach out:
+
+* Salesforce
+* Okta
+* Ping Identity
+
 ## Getting Started
 
 This plugin is an application in itself. It has a simple UI
