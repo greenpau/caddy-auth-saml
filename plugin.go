@@ -55,9 +55,10 @@ type UserInterfaceParameters struct {
 
 // TokenParameters represent JWT parameters of CommonParameters.
 type TokenParameters struct {
-	TokenName   string `json:"token_name,omitempty"`
-	TokenSecret string `json:"token_secret,omitempty"`
-	TokenIssuer string `json:"token_issuer,omitempty"`
+	TokenName     string `json:"token_name,omitempty"`
+	TokenSecret   string `json:"token_secret,omitempty"`
+	TokenIssuer   string `json:"token_issuer,omitempty"`
+	TokenLifetime int    `json:"token_lifetime,omitempty"`
 }
 
 // CaddyModule returns the Caddy module information.
@@ -102,6 +103,7 @@ func (m *AuthProvider) Validate() error {
 				m.Name,
 			)
 		}
+		m.Jwt.TokenSecret = os.Getenv("JWT_TOKEN_SECRET")
 	}
 
 	if m.Jwt.TokenIssuer == "" {
@@ -112,10 +114,34 @@ func (m *AuthProvider) Validate() error {
 		m.Jwt.TokenIssuer = "localhost"
 	}
 
+	if m.Jwt.TokenLifetime == 0 {
+		m.Jwt.TokenLifetime = 900
+		m.logger.Info(
+			"JWT token lifetime not found, using default",
+			zap.Int("jwt.token_lifetime", m.Jwt.TokenLifetime),
+		)
+	} else {
+		m.logger.Info(
+			"JWT token lifetime found",
+			zap.Int("jwt.token_lifetime", m.Jwt.TokenLifetime),
+		)
+	}
+
 	// Validate Azure AD settings
 	if m.Azure != nil {
 		m.Azure.logger = m.logger
-		m.Azure.Jwt = m.Jwt
+		if m.Azure.Jwt.TokenName == "" {
+			m.Azure.Jwt.TokenName = m.Jwt.TokenName
+		}
+		if m.Azure.Jwt.TokenSecret == "" {
+			m.Azure.Jwt.TokenSecret = m.Jwt.TokenSecret
+		}
+		if m.Azure.Jwt.TokenIssuer == "" {
+			m.Azure.Jwt.TokenName = m.Jwt.TokenIssuer
+		}
+		if m.Azure.Jwt.TokenLifetime == 0 {
+			m.Azure.Jwt.TokenLifetime = m.Jwt.TokenLifetime
+		}
 		m.Azure.AutoRedirect = m.AutoRedirect
 		if err := m.Azure.Validate(); err != nil {
 			return fmt.Errorf("%s: %s", m.Name, err)

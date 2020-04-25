@@ -57,7 +57,7 @@ func (az *AzureIdp) Authenticate(reqID, acsURL string, samlpResponse []byte) (*j
 	}
 
 	claims := &jwt.UserClaims{}
-	claims.ExpiresAt = time.Now().Add(time.Duration(900) * time.Second).Unix()
+	claims.ExpiresAt = time.Now().Add(time.Duration(az.Jwt.TokenLifetime) * time.Second).Unix()
 
 	for _, attrStatement := range samlAssertions.AttributeStatements {
 		for _, attrEntry := range attrStatement.Attributes {
