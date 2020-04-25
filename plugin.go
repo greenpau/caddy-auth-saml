@@ -361,6 +361,8 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 		zap.String("user_id", userIdentity.ID),
 	)
 
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Authorization", "Bearer "+userToken)
 	w.Header().Set("Set-Cookie", m.Jwt.TokenName+"="+userToken+" Secure; HttpOnly;")
 	if cookie, err := r.Cookie("saml_plugin_redirect_url"); err == nil {
