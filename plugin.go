@@ -73,7 +73,6 @@ func (m *AuthProvider) Provision(ctx caddy.Context) error {
 	m.logger = ctx.Logger(m)
 	m.logger.Info("provisioning plugin instance")
 	m.Name = "saml"
-	m.logger.Error(fmt.Sprintf("azure is %v", m.Azure))
 	return nil
 }
 
