@@ -321,10 +321,10 @@ func TestPlugin(t *testing.T) {
 	authRequestParams.AssertionAttributeName = "greenpau@contoso.com"
 	authRequestParams.AssertionAttributeRoleSessionName = "greenpau@contoso.com"
 
-	caddytest.InitServer(t, rawConfig, "json")
-
-	caddytest.AssertGetResponse(t, baseURL+"/health", 200, "OK")
-	caddytest.AssertGetResponse(t, baseURL+"/version", 200, "1.0.0")
+	tester := caddytest.NewTester(t)
+	tester.InitServer(rawConfig, "json")
+	tester.AssertGetResponse(baseURL+"/health", 200, "OK")
+	tester.AssertGetResponse(baseURL+"/version", 200, "1.0.0")
 
 	t.Logf("Test getting to a sign in screen")
 	uiArgs := uiFactory.GetArgs()
@@ -332,7 +332,7 @@ func TestPlugin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error generating UI response: %s", err)
 	}
-	caddytest.AssertGetResponse(t, baseURL+"/saml", 200, expResponseBytes.String())
+	tester.AssertGetResponse(baseURL+"/saml", 200, expResponseBytes.String())
 
 	// Test SAML validation with valid payload - Azure
 	t.Logf("Test SAML validation with valid payload - Azure")

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp/caddyauth"
-	"github.com/google/uuid"
 	jwt "github.com/greenpau/caddy-auth-jwt"
+	"github.com/satori/go.uuid"
 	"go.uber.org/zap"
 	"net/http"
 	//"net/http/httputil"
@@ -275,7 +275,7 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 	uiArgs := m.uiFactory.GetArgs()
 
 	// Generate request UUID
-	reqID = uuid.New().String()
+	reqID = uuid.NewV4().String()
 
 	m.logger.Debug(
 		"Request received",
