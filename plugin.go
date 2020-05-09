@@ -294,10 +294,12 @@ func (m AuthProvider) Authenticate(w http.ResponseWriter, r *http.Request) (cadd
 			for _, k := range []string{"saml_plugin_redirect_url", m.Jwt.TokenName} {
 				w.Header().Add("Set-Cookie", k+"=delete; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT")
 			}
-		} else {
-			if redirectURL, exists := q["redirect_url"]; exists {
-				w.Header().Set("Set-Cookie", "saml_plugin_redirect_url="+redirectURL[0])
-			}
+			w.Header().Set("Location", m.AuthURLPath)
+			w.WriteHeader(303)
+			return caddyauth.User{}, false, nil
+		}
+		if redirectURL, exists := q["redirect_url"]; exists {
+			w.Header().Set("Set-Cookie", "saml_plugin_redirect_url="+redirectURL[0])
 		}
 	}
 
